@@ -1,0 +1,130 @@
+// Package chopro — filter and header-emission layer.
+//
+// This file provides the "pre-processing" layer that sits between
+// parser (classifies lines) and chart (orchestrates the full walk).
+// It handles:
+//   - stripParens:     remove outer parens from chord tokens
+//   - isDropLine:      detect lines that should be dropped entirely
+//   - maybeSectionBreak: insert a blank line when a section boundary is hit
+//   - HeaderOpts/emitHeader/capoBodyLine: BandHelper {key: value} header
+//
+// import "ggt/internal/chopro" — package chopro
+
+package chopro
+
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var (
+	// xLineRe matches a line that is exactly "X" (the standard tab-chart
+	// end-of-song marker), optionally surrounded by whitespace.
+	xLineRe = regexp.MustCompile(`^\s*X\s*$`)
+
+	// instrRe matches a standalone "(Instrumental)" line.
+	instrRe = regexp.MustCompile(`^\s*\(Instrumental\)\s*$`)
+)
+
+// isDropLine returns true if a lyric-class line should be dropped
+// entirely (not emitted to the output).
+func isDropLine(line string) bool {
+	return xLineRe.MatchString(line) || instrRe.MatchString(line)
+}
+
+// stripParens removes the outermost paren pair from a chord token.
+//
+//	"(Gm)"   → "Gm"
+//	"Gm"     → "Gm"   (unchanged — no outer parens)
+//	"((G))"  → "(G)"  (only one level stripped)
+//
+// Safe because standard chord names never contain meaningful parens.
+// Only the OUTERMOST pair is stripped, so "(D/B)" → "D/B" but "(A((B)))"
+// → "(A((B)))" only has one level removed.
+func stripParens(tok string) string {
+	if len(tok) >= 2 && tok[0] == '(' && tok[len(tok)-1] == ')' {
+		return tok[1 : len(tok)-1]
+	}
+	return tok
+}
+
+// maybeSectionBreak appends a "" (blank line) to out if the last
+// element is not already blank and out is not empty.
+func maybeSectionBreak(out *[]string) {
+	if len(*out) == 0 {
+		return // no leading blank
+	}
+	if (*out)[len(*out)-1] != "" {
+		*out = append(*out, "")
+	}
+}
+
+// HeaderOpts holds optional fields for the {key: value} .chopro header.
+type HeaderOpts struct {
+	Title    string
+	Artist   string
+	Key      string
+	Capo     int
+	Tempo    int
+	Time     string
+	Duration string
+}
+
+// emitHeader produces the {key: value} header block.
+// Only non-empty fields are emitted, in fixed order. Returns "" if no
+// fields are set.
+func emitHeader(o HeaderOpts) string {
+	var lines []string
+	if o.Title != "" {
+		lines = append(lines, fmt.Sprintf("{title: %s}", o.Title))
+	}
+	if o.Artist != "" {
+		lines = append(lines, fmt.Sprintf("{artist: %s}", o.Artist))
+	}
+	if o.Key != "" {
+		lines = append(lines, fmt.Sprintf("{key: %s}", o.Key))
+	}
+	if o.Capo > 0 {
+		lines = append(lines, fmt.Sprintf("{capo: %d}", o.Capo))
+	}
+	if o.Tempo > 0 {
+		lines = append(lines, fmt.Sprintf("{tempo: %d}", o.Tempo))
+	}
+	if o.Time != "" {
+		lines = append(lines, fmt.Sprintf("{time: %s}", o.Time))
+	}
+	if o.Duration != "" {
+		lines = append(lines, fmt.Sprintf("{duration: %s}", o.Duration))
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n")
+}
+
+// capoBodyLine returns the "(Capo N)" visual-cue line if capo > 0,
+// otherwise "". This is the user's own shorthand to remind themselves
+// that a personal transpose of -capo must be set in BandHelper.
+func capoBodyLine(capo int) string {
+	if capo > 0 {
+		return fmt.Sprintf("(Capo %d)", capo)
+	}
+	return ""
+}
+
+// wrapStandaloneChordLine brackets every real chord on a chord line
+// with no lyric beneath it. Annotation tokens (x2, |, N.C.) pass
+// through unchanged.
+func wrapStandaloneChordLine(line string) string {
+	return tokenRe.ReplaceAllStringFunc(line, func(tok string) string {
+		upper := strings.ToUpper(tok)
+		if upper == "N.C." || upper == "(N.C.)" {
+			return "(N.C.)"
+		}
+		if IsAnnotationToken(tok) {
+			return tok
+		}
+		return "[" + stripParens(tok) + "]"
+	})
+}

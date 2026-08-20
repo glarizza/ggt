@@ -1,0 +1,11 @@
+# Go build output
+/bin/
+*.exe
+*.out
+
+# OS noise
+.DS_Store
+
+# Local copyrighted lyrics / tabs — keep real song charts here
+# but never commit them to the repo
+/ignored/
