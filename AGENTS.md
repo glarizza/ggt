@@ -103,7 +103,8 @@ Two rules:
    with same-length fake words:
 
    ```bash
-   python3 scramble_lyrics.py ignored/my_song.txt > sample-tabs/sample_07.txt
+   python3 scripts/scramble_lyrics.py ignored/my_song.txt
+   # copies the scrambled result to sample-tabs/sample_07.txt
    ```
 
 2. **Never use a real song name as a filename.** Test data files use

@@ -9,3 +9,11 @@
 # Local copyrighted lyrics / tabs — keep real song charts here
 # but never commit them to the repo
 /ignored/
+
+# Pipeline output — cleaned tabs and generated .chopro files for the
+# ggt-chart-pipeline skill. Copyrighted material; never committed.
+/output/
+
+# Standalone helper scripts (scripts/) - Python bytecode cache
+__pycache__/
+*.pyc
