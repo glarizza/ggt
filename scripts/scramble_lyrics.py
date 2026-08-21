@@ -9,9 +9,9 @@ Preserved byte-for-byte (no text content, never faked):
     blank lines, [Sections], tab-lane rows, 'X', asterisk banners,
     and every chord/annotation token.
 
-Chord-vs-lyric is decided by MIRRORING ggt's own chopper parser
-(internal/chopper/parser.go): a token is treated as a chord/annotation iff
-chopper's regexes accept it; everything else is faked. We err toward
+Chord-vs-lyric is decided by MIRRORING ggt's own chopro parser
+(internal/chopro/parser.go): a token is treated as a chord/annotation iff
+chopro's regexes accept it; everything else is faked. We err toward
 preservation -- we never risk faking a real chord column; the only residual
 risk is a rare all-caps interjection word that looks like a chord.
 
@@ -24,7 +24,7 @@ import re
 import sys
 import random
 
-# --- chopper regexes mirrored from internal/chopper/parser.go ---
+# --- chopro regexes mirrored from internal/chopro/parser.go ---
 TOKEN_RE = re.compile(r"\S+")
 # Chords over-match all-caps words starting A-G: intentional (err preserve).
 CHORD_RE = re.compile(r"^\(?[A-G][#b]?[A-Za-z0-9#b+\-]*(?:/[A-G][#b]?)?\*?\)?$")
@@ -44,7 +44,7 @@ WORD_LENGTHS = [2, 3, 4]
 
 
 def is_chord_or_annotation(tok):
-    """A token chopper would read as a chord or annotation. Never scrambled."""
+    """A token chopro would read as a chord or annotation. Never scrambled."""
     if ANNOT_RE.match(tok):
         return True
     if not CHORD_RE.match(tok):
