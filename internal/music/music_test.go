@@ -108,6 +108,40 @@ func TestTransposeCProText(t *testing.T) {
 	}
 }
 
+// TestTransposeCProBody covers body-only de-capo transposition: the {key:}
+// (and any {\u003cmetadata\u003e} line) is left untouched while bracketed chords
+// shift by N; walk-downs with spaces pass through unchanged.
+func TestTransposeCProBody(t *testing.T) {
+	in := "" +
+		"{key: E}\n" +
+		"{capo: 4}\n" +
+		"[C] a [G] b\n" +
+		"[Am] lyric [Am/G]\n" +
+		"[F# - F] walkdown\n"
+	out := TransposeCProBody(in, 4, StyleSharps)
+
+	// key stays E -- it is the target the shapes move toward, not shifted.
+	if got := KeyOf(out); got != "E" {
+		t.Errorf("key must stay E (body-only): got %q", got)
+	}
+	// body shifted +4 with sharps: C->E, G->B, Am->C#m, Am/G->C#m/B.
+	if !strings.Contains(out, "[E] a [B] b") {
+		t.Errorf("C/G not shifted +4:\n%s", out)
+	}
+	if !strings.Contains(out, "[C#m] lyric [C#m/B]") {
+		t.Errorf("Am / Am/G not shifted +4:\n%s", out)
+	}
+	// the {capo: 4} metadata line passes through the body transpose untouched
+	// (it lives in the header; cmd drops it separately on --remove-capo).
+	if !strings.Contains(out, "{capo: 4}") {
+		t.Errorf("{capo: 4} must pass through body transpose untouched:\n%s", out)
+	}
+	// walkdown with a space is not a parseChord symbol -> unchanged.
+	if !strings.Contains(out, "[F# - F] walkdown") {
+		t.Errorf("walkdown was modified -- should pass through:\n%s", out)
+	}
+}
+
 // TestToKey covers --to-key distance math.
 func TestToKey(t *testing.T) {
 	cases := []struct {

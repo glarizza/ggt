@@ -64,9 +64,22 @@ func TestStandaloneChordLineFollowedByAnotherChordLine(t *testing.T) {
 func TestHeaderEmission(t *testing.T) {
 	raw := "G D\nhello world\n"
 	got := Convert(raw, HeaderOpts{Title: "Test Song", Key: "G", Capo: 7})
-	// Expected: {title: Test Song}\n{key: G}\n{capo: 7}\n(Capo 7)\n[body]\n
-	if !strings.HasPrefix(got, "{title: Test Song}\n{key: G}\n{capo: 7}\n(Capo 7)\n") {
-		t.Errorf("expected header+capo-line prefix, got:\n%q", got)
+	// Bare --capo 7 keeps {capo: 7} (the technically-correct 'key G, capo 7'
+	// representation), but the human "(Capo N)" body line is never emitted.
+	want := "{title: Test Song}\n{key: G}\n{capo: 7}\n[G]hello[D] world\n"
+	if got != want {
+		t.Errorf("bare --capo 7 should keep {capo: 7} with no (Capo N) line, got:\n%q", got)
+	}
+}
+
+func TestHeaderEmissionRemoveCapo(t *testing.T) {
+	raw := "G D\nhello world\n"
+	got := Convert(raw, HeaderOpts{Title: "Test Song", Key: "G", Capo: 7, RemoveCapo: true})
+	// --remove-capo drops {capo: 7}; the body de-capo shift is applied by
+	// cmd (music.TransposeCProBody), so cpro itself only omits the {capo} line.
+	want := "{title: Test Song}\n{key: G}\n[G]hello[D] world\n"
+	if got != want {
+		t.Errorf("--remove-capo should drop {capo: 7}, got:\n%q", got)
 	}
 }
 
@@ -94,21 +107,29 @@ func TestInstrumentalLineDropped(t *testing.T) {
 	}
 }
 
-func TestCapoBodyLine(t *testing.T) {
-	cases := []struct {
-		capo int
-		want string
-	}{
-		{0, ""},
-		{-1, ""},
-		{4, "(Capo 4)"},
-		{7, "(Capo 7)"},
+// TestConvertEmitsNoCapoBodyLine is the contract for the removed
+// "(Capo N)" visual-cue line: even with --capo set, Convert must never
+// emit a human "(Capo N)" line. The user adds a personal-transpose cue
+// by hand in BandHelper after import.
+func TestConvertEmitsNoCapoBodyLine(t *testing.T) {
+	in := "C\nhello world\nF\nnext line\n"
+	got := Convert(in, HeaderOpts{Capo: 4, Key: "E"})
+	if strings.Contains(got, "(Capo") {
+		t.Errorf("Convert emitted a (Capo N) line; got:\n%q", got)
 	}
-	for _, c := range cases {
-		got := capoBodyLine(c.capo)
-		if got != c.want {
-			t.Errorf("capoBodyLine(%d) = %q, want %q", c.capo, got, c.want)
-		}
+}
+
+// TestEmitHeaderCapoDroppedByRemoveCapo: --remove-capo suppresses the
+// {capo: N} header (the chart is the native-key, no-capo version), while a
+// bare --capo N still emits {capo: N} (technically correct representation).
+func TestEmitHeaderCapoDroppedByRemoveCapo(t *testing.T) {
+	plain := emitHeader(HeaderOpts{Key: "E", Capo: 4})
+	if !strings.Contains(plain, "{capo: 4}") {
+		t.Errorf("expected {capo: 4} with bare --capo, got:\n%s", plain)
+	}
+	dropped := emitHeader(HeaderOpts{Key: "E", Capo: 4, RemoveCapo: true})
+	if strings.Contains(dropped, "{capo") {
+		t.Errorf("--remove-capo must drop {capo: N}, got:\n%s", dropped)
 	}
 }
 

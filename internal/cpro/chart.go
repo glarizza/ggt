@@ -13,8 +13,8 @@
 // "(Instrumental)" lines are dropped entirely.
 //
 // When HeaderOpts is non-trivial, a {key: value} header block is
-// prepended to the output. If --capo N was set, the header has
-// `{capo: N}` AND a `(Capo N)` visual-cue line is prepended to the body.
+// prepended to the output. If --capo N is set (and --remove-capo is not), the
+// header gains a single `{capo: N}` line; no human (Capo N) body line is ever emitted.
 
 package cpro
 
@@ -24,7 +24,7 @@ import "strings"
 
 // Convert reads the full text of a tab chart and returns .cpro output.
 // If opts has any fields set, a {key: value} header is prepended.
-// If opts.Capo > 0, a "(Capo N)" line is also prepended to the body.
+// RemoveCapo is handled in cmd/ggt (body de-capo); cpro only emits {capo: N}.
 func Convert(text string, opts HeaderOpts) string {
 	rawLines := strings.Split(text, "\n")
 	classified := make([]ClassifiedLine, len(rawLines))
@@ -71,12 +71,6 @@ func Convert(text string, opts HeaderOpts) string {
 	header := emitHeader(opts)
 	if header != "" {
 		buf.WriteString(header)
-		buf.WriteByte('\n')
-	}
-
-	capoLine := capoBodyLine(opts.Capo)
-	if capoLine != "" {
-		buf.WriteString(capoLine)
 		buf.WriteByte('\n')
 	}
 

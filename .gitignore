@@ -10,7 +10,7 @@
 # but never commit them to the repo
 /ignored/
 
-# Pipeline output — cleaned tabs and generated .chopro files for the
+# Pipeline output — cleaned tabs and generated .cpro files for the
 # ggt-chart-pipeline skill. Copyrighted material; never committed.
 /output/
 

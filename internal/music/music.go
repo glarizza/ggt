@@ -212,6 +212,30 @@ func TransposeCProText(text string, semis int, style Style) string {
 	return strings.Join(lines, "\n")
 }
 
+// TransposeCProBody is de-capo / body-only transposition. It is the same
+// bracket shift as TransposeCProText but it IGNORES every {key:value}
+// metadata line (key, capo, title, ...), leaving the header exactly as it
+// was. The caller pre-fills {key: <sounding key>}; this shifts the body
+// chord shapes up N semitones so they match that key — the native-key,
+// no-capo representation. Walk-downs and annotation tokens are left to be
+// fixed by hand afterwards, matching TransposeCProText's philosophy.
+func TransposeCProBody(text string, semis int, style Style) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "{") {
+			continue // metadata block — leave key/capo/title/etc. untouched
+		}
+		lines[i] = bracketRe.ReplaceAllStringFunc(line, func(bracket string) string {
+			inner := bracket[1 : len(bracket)-1]
+			if t, ok := TransposeSymbol(inner, semis, style); ok {
+				return "[" + t + "]"
+			}
+			return bracket
+		})
+	}
+	return strings.Join(lines, "\n")
+}
+
 // naturalChromatic maps each natural note letter to its semitone position,
 // C=0, with the black keys filling the gaps.  A diatonic index does not
 // give a pitch class (it skips the black keys), which is why the old

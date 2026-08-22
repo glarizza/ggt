@@ -60,15 +60,19 @@ func maybeSectionBreak(out *[]string) {
 	}
 }
 
+// capo in the header is omitted when RemoveCapo is set (the chart is the
+// native-key, no-capo version). RemoveCapo also drives the body de-capo
+// shift (wired in cmd/ggt), not the header itself.
 // HeaderOpts holds optional fields for the {key: value} .cpro header.
 type HeaderOpts struct {
-	Title    string
-	Artist   string
-	Key      string
-	Capo     int
-	Tempo    int
-	Time     string
-	Duration string
+	Title      string
+	Artist     string
+	Key        string
+	Capo       int
+	RemoveCapo bool
+	Tempo      int
+	Time       string
+	Duration   string
 }
 
 // emitHeader produces the {key: value} header block.
@@ -85,7 +89,7 @@ func emitHeader(o HeaderOpts) string {
 	if o.Key != "" {
 		lines = append(lines, fmt.Sprintf("{key: %s}", o.Key))
 	}
-	if o.Capo > 0 {
+	if o.Capo > 0 && !o.RemoveCapo {
 		lines = append(lines, fmt.Sprintf("{capo: %d}", o.Capo))
 	}
 	if o.Tempo > 0 {
@@ -103,15 +107,9 @@ func emitHeader(o HeaderOpts) string {
 	return strings.Join(lines, "\n")
 }
 
-// capoBodyLine returns the "(Capo N)" visual-cue line if capo > 0,
-// otherwise "". This is the user's own shorthand to remind themselves
-// that a personal transpose of -capo must be set in BandHelper.
-func capoBodyLine(capo int) string {
-	if capo > 0 {
-		return fmt.Sprintf("(Capo %d)", capo)
-	}
-	return ""
-}
+// (the human-facing (Capo N) body line has been removed entirely; if you
+// want a reminder that a personal capo transpose is needed, add it back by
+// hand in BandHelper at import time.)
 
 // wrapStandaloneChordLine brackets every real chord on a chord line
 // with no lyric beneath it. Annotation tokens (x2, |, N.C.) pass

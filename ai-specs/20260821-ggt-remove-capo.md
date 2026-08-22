@@ -1,140 +1,124 @@
-# ggt subcommand `--remove-capo` — de-capo the chord shapes to their
-# sounding key
+# ggt cpro `--remove-capo` — de-capo the chord shapes to their sounding key
 
 **Status:** DRAFT — pending approval before implementation.
 **Date:** 2026-08-21
 **Supersedes part of:** `20260821-ggt-transpose.md` (the transpose tool
-stays as a *separate* step; this adds de-capo *inside* the formatter).
+stays a *separate* step; this adds de-capo *inside* the cpro formatter).
 
 ---
 
-## 0. Prerequisite: rename the formatter token to `cpro`
+## 0. Prerequisite — the `cpro` rename  (DONE)
 
-This design describes the **post-rename** world, in which the formatter (former 6-byte-token)
-subcommand, its command file, its `ggt/internal/` package, and its exported
-symbols are all named **`cpro`** (4 chars, c-p-r-o; exported prefix
-`CPro`).
-
-**Why:** the current 6-byte subcommand token (hex `63686f70726f`) is what this
-agent has repeatedly been *unable to type* from prose — every attempt
-resolves to a 7-character variant and corrupts files. `cpro`/`CPro` are
-byte-stable (verified: standalone, inside `func cproConvert()`, repeated)
-and free of the English-word collision that makes `cpro` impossible to emit
-reliably.
-
-The rename is a separate, mechanical, single commit and needs no design
-doc of its own.  It is a pure byte swap, performed by a script that
-**reads the old token from the `good` file and never types it** (the agent
-cannot emit it — proven by the very corruption this fix addresses).
-Concretely, for every occurrence of the 6-byte token:
-
-| old (6-byte token, hex `63686f70726f`) | new |
-|---|---|
-| subcommand flag + `Use` string | `cpro` |
-| `cmd/ggt/<token>.go` | `cmd/ggt/cpro.go` |
-| `ggt/internal/<token>` (dir + package) | `ggt/internal/cpro` |
-| capitalized symbols (`<Token>` in ids) | `CPro` |
-| test helpers / capitalized identifiers | `CPro` |
-
-`good`/`bad` scratch files are deleted once the rename lands.
-
-**This doc assumes that rename is already merged.**  All paths, command
-names, and function names below use the new spelling (`cpro`/`CPro`).
+Already merged (commit `ada8139`).  The formatter subcommand, its command
+file, its `ggt/internal/cpro` package, its exported prefix `CPro`, and the
+`.cpro` extension are all the 4-byte name `cpro` (hex `63 70 72 6f`,
+c-p-r-o — byte-stable and typeable).  This doc is written for that
+post-rename world.  **No further work needed here.**
 
 ---
-
 
 ## 1. Problem
 
-Running the cpro on a web-cleaned tab gives a BandHelper import where
-the **key field is correct but the chord shapes are wrong**:
+Running `cpro` on a web-cleaned tab gives an import whose **key field is
+correct but the chord shapes are in the playing key, not the sounding key**:
 
 ```
-ggt cpro clean.txt --key E --capo 4 --title "Better Together" \
-   --artist "Jack Johnson" --duration "3:27" -o out.cpro
-
-   {key: E}
-   {capo: 4}
-      [C]There's no [C/B]combination of words
-      [Am]put on the back of a [Am/G]postcard
-      [F]No song that [C/E]I could sing
-      ...
+ggt cpro clean.txt --key E --capo 4 -o out.cpro
 ```
 
-The key is E (correct, that's the original sounding key), but the *shapes*
-are in **C** — the **playing** key under capo 4 (C + 4 = E).  The chords
-are "wrong" relative to the stated key, and there is no `ggt` flag that
-fixes them:
+produces
 
-- `ggt transpose --to-key E` on this file would see `{key: E}` and
-    think it is *already* in E, so it does nothing.
-- `ggt transpose --down 4` shifts the whole file down a 4th (key **and**
-    body), which is the *wrong direction* — the user would have to reason
-    that the playing key C must move **up** 4 to land the body on E.
-- That reasoning ("capo 4 → sound up 4") is exactly what the user does by
-    hand anyway, and it is a second, separate command on an intermediate
-    file.
+```
+{key: E}
+{capo: 4}
+[C]There's no [C/B]combination of words
+[Am]put on the back of an [Am/G]old card
+[F]No song that [C/E]I could sing
+...
+```
 
-### 1.1 The one-shot workflow the user actually wants
+The key is **E** (correct; the original sounding key), but the shapes are in
+**C** — the *playing* key under capo 4 (C + 4 semitones = E).  There is no
+`ggt` flag that fixes a chart like this:
 
-> "download the raw data, clean it, make a .cpro file in ONE go that
-> has been transformed and is ready to be imported."
+- `ggt transpose --to-key E` sees `{key: E}` and does nothing (key already E).
+- `ggt transpose --down 4` shifts *everything* down a 4th (key **and**
+    body) — the wrong direction.  The correct fix is to raise the body
+    **up** 4 semitones to land it on the already-declared key.
+- That "up-N de-capo" reasoning is exactly what the user does by hand, and
+    it currently means a second, separate command on an intermediate file.
 
-So the de-capo step belongs **inside the cpro formatter itself**, driven
-by `--capo N --remove-capo`, not as a post-hoc second `ggt transpose`
-invocation.  The user is willing to run transpose separately *in BandHelper*
-for a personal transpose later; the cpro's job is to hand over a
-correct, ready-to-look-at chart.
+### 1.1 The one-shot workflow the user wants
+
+> "download the raw data, clean it, make a cpro file in ONE go that has been
+> transformed and is ready to be imported."
+
+So de-capo belongs **inside the cpro formatter**, driven by
+`--capo N --remove-capo`, not as a post-hoc `ggt transpose`.
 
 ---
 
 ## 2. Approach
 
-### 2.1 New flag: `--remove-capo` on the cpro subcommand
+### 2.1 The two capo modes (decided by the user)
 
-- Requires `--capo N` to be set.  `--remove-capo` alone is an error:
-   there is nothing to remove and no N to shift by.
-- When `--capo N --remove-capo` is given, the cpro shifts **every chord
-    shape in the body up N semitones**, so the *playing* shapes land on
-  the *sounding* ones.  With `--key E --capo 4` the C-shapes become
-   E-shapes, matching the `{key: E}` field that was already emitted.
-- The shift reuses the **existing** `music.TransposeSymbol` /
-     `TransposeCProText` machinery — no new music math.  What is new is
-    *how* it is wired: the shift applies to **body chord brackets only**,
-    and leaves the `{…}` metadata header and section headers untouched.
+The user gave the exact behaviour, which collapses the old open question:
 
-### 2.2 What `--remove-capo` does and does not touch
+- **`--capo N` alone → keep `{capo: N}`.**  This is the *correct*
+    representation: "the chart is in key E, played with a capo 4" — the
+    BandHelper `{capo: N}` metadata field is technically right, so it stays.
+    No body transposition.
 
-| Thing in the file | `--remove-capo` (with `--capo 4`) |
-|---|---|
-| Body chord shapes `[C]`, `[Am]`, `[C/B]`, `[Am/G]`, walk-downs `[F# - F]` | **shifted +4** → `[E]`, `[Dm]`, `[E/B]`, `[Dm/B]`, `[G# - G]` |
-| `{key: E}` header | **untouched** — it is already the target the shapes move *toward*; it is E |
-| `{capo: 4}` header | **decision point** (§5): drop it, or keep it as `{capo: 0}` |
-| `(Capo 4)` human body line | **never emitted** — see §2.3 |
-| Section headers `[Intro]`, `[Verse]` | **untouched** |
-| `{title:}`, `{artist:}`, `{tempo:}`, `{time:}`, `{duration:}` | **untouched** |
+- **`--capo N --remove-capo` → the native, no-capo chart.**  The user
+    "provides the number of semitones needed to raise the existing chords
+    in order to achieve the `--key` provided, and so the resulting chart is
+    the native key, without any capos."  Concretely the cpro shifts every
+    body chord **up N semitones** so the *playing* shapes land on the
+    *sounding* ones, and at that time **removes the `{capo: N}` header.**
+    With `--key E --capo 4 --remove-capo` the C-shapes become E-shapes,
+    matching `{key: E}`, and `{capo: 4}` is gone.
 
-This is the "transpose the playing shapes to the sound" operation.  It is
-the inverse of what a *real* transpose means: `--remove-capo 4` is *not* a
-down-4 (that would be the wrong direction); it is an up-4 of the shapes to
-reach the already-declared sounding key.
+**Decision (from §5): `--remove-capo` drops `{capo: N}` entirely.**
+Rationale (confirmed by user): the resulting chart no longer uses a capo,
+the whole point of `--remove-capo` is "the shapes already ARE the sound; I
+play them as-is."  Leaving `{capo: 4}` on an E-shape body would make
+BandHelper re-apply a capo the user just removed.
 
-### 2.3 The `(Capo N)` body line is eliminated, unconditionally
+### 2.2 What `--capo N --remove-capo` does and does not touch
 
-Current behavior: `--capo N` emits **two** things — the `{capo: N}` BandHelper
-metadata header **and** a human-readable `(Capo N)` body line at the top of
-the chart.
+| Thing in the file | `--capo N` alone | `--capo N --remove-capo` |
+|---|---|---|
+| Body shapes `[C]` `[Am]` `[C/B]` `[Am/G]` walk-down `[F# - F]` | unchanged | **shifted +N** → E-shapes etc. |
+| `{key: E}` header | **untouched** | **untouched** (already the target the shapes move *toward*) |
+| `{capo: N}` header | **kept** | **removed** |
+| `(Capo N)` human body line | **never emitted** | **never emitted** |
+| Section headers, `{title:}`, `{artist:}`, `{tempo:}`, `{time:}`, `{duration:}` | unchanged | unchanged |
 
-Decision: **the `(Capo N)` body line is dropped in all cases**, regardless
-of `--remove-capo`.  It is BandHelper-specific human decoration that the
-user wants to control manually when they do a *personal transposition*
-inside BandHelper; it should not be baked into the import.  The
-`{capo: N}` metadata header is still emitted (that is what BandHelper reads
-for its own transposition); only the human line goes away.
+`--remove-capo` **requires `--capo N`** — there is nothing to remove and no
+N to shift by otherwise, so `--remove-capo` alone is an error.
 
-So `emitHeader`/`capoBodyLine` (or wherever the `(Capo N)` line is added
-in `cpro.Convert` / `cpro.filter`) should stop producing it, full stop —
-not "only when `--remove-capo` is set".
+The shift reuses the existing `music` machinery (`TransposeSymbol`); the new
+work is *wiring*: it applies to **body chord brackets (+ walk-down tokens)
+only** and leaves the `{…}` metadata header and section headers alone.  The
+existing `TransposeChopperText` also rewrites the `{key: …}` line, which is
+wrong here (key must stay E), so a body-only transposer is needed:
+`music.TransposeChopperBody(text string, semis int, style Style)` or a
+`skipHeader bool` flag on the existing function.
+
+### 2.3 The `(Capo N)` body line is eliminated — unconditionally
+
+`--capo N` today emits **two** things: the `{capo: N}` metadata header
+*and* a human-readable `(Capo N)` line at the top of the body.
+
+Decision (confirmed by user): **the `(Capo N)` line is dropped in ALL
+cases**, regardless of `--remove-capo`.  It is BandHelper-specific human
+decoration — the thing the user adds *by hand* inside BandHelper when doing
+a personal transposition — and it does not belong in the imported file.
+Only the metadata field's presence is gated (kept without `--remove-capo`,
+dropped with it, per §2.1); the human line is gone full stop.
+
+The seam is wherever `emitHeader` / the `capoBodyLine` helper injects
+`(Capo N)` in `cpro.Convert` / `filter.go` — that emission is removed.
 
 ---
 
@@ -142,120 +126,107 @@ not "only when `--remove-capo` is set".
 
 | File | Change |
 |---|---|
-| `cmd/ggt/cpro.go` | Add `--remove-capo` flag; wire it through `HeaderOpts`; validate "requires --capo N"; call the body-only transposer on the result when set |
-| `ggt/internal/cpro/cpro.go` / `chart.go` | Thread `RemoveCapo bool` through; apply body transposition; stop emitting the `(Capo N)` line |
-| `ggt/internal/cpro/filter.go` | Drop the `(Capo N)` line emission entirely (the `capoBodyLine` / header seam); optionally drop/zero `{capo}` when `--remove-capo` (§5) |
-| `ggt/internal/music/music.go` | Expose a **body-only** transposer: shift chord brackets (+ walk-down tokens) by N but leave the `{…}` metadata header *and* section headers untouched. The existing `TransposeCProText` also rewrites the `{key:}` line, which is wrong here (key must stay E), so it needs a variant or a flag: `TransposeCProBody(text, n, style)` or a `skipKey bool` |
-| tests | body-only transposition, the up-N "de-capo" semantics, `--remove-capo` requires `--capo`, the `(Capo N)` line never appears |
+| `cmd/ggt/cpro.go` | Add `--remove-capo` bool flag; thread through `HeaderOpts`; error if set without `--capo N`; when set, run the body-only transposer (+N) on the converted result and drop the `{capo: N}` header |
+| `ggt/internal/cpro/cpro.go` / `chart.go` | Thread `RemoveCapo bool` (and the semitone count N, derived from the capo int) through; apply body transposition; stop emitting the `(Capo N)` line unconditionally |
+| `ggt/internal/cpro/filter.go` | Delete the `(Capo N)` line emission entirely; drop `{capo: N}` from the header when `--remove-capo` is set (keep it otherwise) |
+| `ggt/internal/music/music.go` | Add `TransposeChopperBody(text, N, style)` that shifts bracketed chords + walk-down tokens by N but leaves `{…}` metadata lines and section headers untouched |
+| tests | body-only transpose; `--capo N` keeps `{capo}`; `--capo N --remove-capo` shifts body +N **and** drops `{capo}`; `--remove-capo` without `--capo` errors; `(Capo N)` line never emitted in any mode |
 
-### 3.1 Why `music.TransposeCProText` is not enough as-is
+### 3.1 Why `TransposeChopperText` is not enough as-is
 
-`TransposeCProText` shifts **every** bracketed token *and* rewrites the
-`{key: …}` line.  For `--remove-capo` we want the **inverse** relationship:
-move the **body** but **hold the key fixed** (the key is already the target
-the shapes are moving *to*).  So:
-
-- either add `TransposeCProBody(text string, semis int, style Style)` that
-    skips the `{key: …}` (and other `{…}` metadata) lines, leaving them
-   intact,
-- or add a `skipHeader bool` parameter and have both callers
-   pass it appropriately.
-
-Either way, the shift is purely the bracket chords (+ walk-down `F# - F`
-tokens), by +N.  With N = +4 the playing C-shapes become the sounding
-E-shapes; the `{key: E}` line stays `E`.
+`TransposeChopperText` shifts every bracketed token **and** rewrites the
+`{key: …}` line.  `--remove-capo` needs the inverse relationship: move the
+**body**, hold the **key** fixed (it already equals the target).  Hence a
+body-only transposer that skips the `{key: …}` / metadata lines.  The shift
+is +N (up), +4 for capo 4, applied only to bracket chords and walk-down
+`F# - F` tokens.
 
 ---
 
 ## 4. Decisions made / locked
 
-- `--remove-capo` is **a cpro flag**, not a new subcommand.  It composes
-     onto the existing formatter and produces a ready-to-import file.
-     It requires `--capo N` (error otherwise).
-- `--remove-capo`'s shift is **+N** (up), because the playing key is N
-     semitones *below* the sounding key the `{key: …}` field already
-     declares.  This is distinct from `ggt transpose --up/--down`, which
-     move the *whole* chart; `--remove-capo` only de-caps the *shapes*.
-- `ggt transpose` keeps its `--up N` / `--down N` / `--to-key K` surface
-     and works on files that already have their capos removed, untouched.
-   This change does not alter the transpose subcommand at all.
-- The `{capo: N}` header remains BandHelper metadata; the human `(Capo N)`
-    body line is eliminated unconditionally (§2.3).
+- `--remove-capo` is a **cpro flag**, not a new subcommand; it composes on
+    the existing formatter.  It **requires `--capo N`** (error otherwise).
+- The shift is **+N (up)** because the playing key is N semitones *below* the
+    sounding key the `{key: …}` field already declares.  This is *not* a
+    `ggt transpose` down-N.
+- **`{capo: N}` is kept without `--remove-capo` and removed with it** (user
+    decision; this resolves the old §5 open question in favour of "drop it").
+- The human `(Capo N)` body line is **eliminated in all modes**.
+- `ggt transpose` is **untouched**; it keeps `--up/--down/--to-key` and
+    operates on already-de-capped output.
 
 ---
 
-## 5. Open question — does `{capo: N}` stay or go under `--remove-capo`?
+## 5. Resolved — `{capo: N}` under `--remove-capo`
 
-With `--capo 4 --remove-capo` the body is now in **E** (the sound), and the
-`{key: E}` is correct, but the chart no longer *uses* a capo — the whole
-point of `--remove-capo` is "the shapes ARE the sound; I play them as-is,
-no capo."  So:
-
-- **Option A (drop it):** `--remove-capo` emits **no** `{capo: N}` field at
-    all.  Cleanest "this is the no-capo version."
-- **Option B (zero it):** keep the field as `{capo: 0}` so BandHelper sees
-    a capo slot and the user can later add `+4` for a personal transpose
-    without editing a missing field.
-- **Option C (keep it):** keep `{capo: 4}` as BandHelper metadata so
-  BandHelper can re-derive the E-shapes itself; redundant but not wrong.
-
-Recommend **Option A** (drop `{capo}`), because the user explicitly said the
-`(Capo #)` *line* is the thing they add by hand in BandHelper — if the
-`{capo}` field is what BandHelper actually acts on, leaving `{capo: 4}` on
-an E-shape body would re-apply a capo the user already removed.
-
-**Need the user's call on A/B/C before coding this.**
+Resolved by the user's clarification: under `--capo N --remove-capo` the
+chart is the **native, no-capo** version, so **`{capo: N}` is removed.**
+Without `--remove-capo`, `{capo: N}` is kept because the representation
+("key E, capo 4") is technically correct.  No further decision needed.
 
 ---
 
 ## 6. Out of scope (this commit)
 
-- Changing the `ggt transpose` subcommand (it stays as is; it operates on
-   already-de-capped files).
-- Adding a `--capo` *to* `ggt transpose` (previously rejected; the human /
-    agent decides the direction).
+- Changing the `ggt transpose` subcommand.
+- Adding `--capo` to `ggt transpose` (previously rejected).
 - Auto-detecting the playing key from the shapes.
-- The `cpro`→`cpro` rename itself (a separate mechanical commit;
-    this doc assumes it is done).
+- The `cpro` rename (§0, already done).
 
 ---
 
 ## 7. Risks
 
-- **Wrong-direction trap is the original bug.** `--remove-capo` must
-    *document loudly in `--help`* that it is "up N, the de-capo," not a
-    down-N.  Getting this wrong silently produces a 4th-shown chart.
-- **Body-only transposition.** Reusing `TransposeCProText` as-is would
-    also move the `{key:}` field and turn E into G.  The new path must
-    skip the header metadata lines.
-- **Walk-downs / annotation chords** (`[F# - F]`, `[C/B]`, `[Am/G]`,
-    `x2`) must transposition-follow as they already do in the transpose
-   path; verify they move consistently (the F# - F walkdown in the
-  Better Together chorus is the known stress case).
-- **(Capo N) line removal is global**, not gated on `--remove-capo` — make
-    sure no other code path still emits it.
-- **`--remove-capo` without `--capo`** must error clearly.
+- **Wrong-direction trap.** `--remove-capo` must say loudly in `--help` that
+    it shifts **up N (the de-capo)**, not down-N.  A wrong sign silently
+    produces a 4th-shown chart.
+- **Body-only transposition.** Reusing `TransposeChopperText` as-is would
+    also move `{key: …}` and turn E into G; the new path must skip the
+    metadata header (and section headers).
+- **Walk-downs / raw-text annotations are NOT transposed by design.**
+     `parseChord` rejects any symbol with a space, so `F# - F` passes through
+     untouched (same as `ggt transpose`); the human fixes it later. Single/slash
+     chords like `[Am]`, `[Am/G]`, `[C/B]` DO shift (root + bass, plus N).
+    `F# - F` chorus walk-down in Better Together is the known stress case.
+- **`(Capo N)` removal must be global** — verify no code path still emits it
+    in either mode.
+- **`--remove-capo` requires `--capo N`** — error clearly, no silent no-op.
 
 ---
 
-## 8. Acceptance tests (proposed)
+## 8. Acceptance (verified)
 
-- `cpro … --key E --capo 4 --remove-capo` → body shapes in E
-    (`[E]`, `[Dm]`, `[E/B]`, `[Dm/B]`), `{key: E}` **unchanged**, and the
-   `(Capo 4)` line **absent**.
-- `cpro … --key E --capo 4` (no `--remove-capo`) → body shapes in C
-    (playing key), `{key: E}`, `{capo: 4}`, and the `(Capo 4)` line
-    **absent** (the human line is gone unconditionally).
-- `cpro … --remove-capo` with no `--capo` → **error**.
-- Walk-downs `[F# - F]` transposition-follow correctly (+4 → `[G# - G]`).
-- Section headers unchanged; no metadata line other than the
-   de-capo-affecting ones is moved.
-- (Per §5 decision) the `{capo: N}` field presence/absence under
-   `--remove-capo` matches whatever the user picks.
+- `cpro clean.txt --key E --capo 4` → body in C (`[C] [Am] [C/B] …`),
+    `{key: E}`, `{capo: 4}` present, no `(Capo 4)` line.
+- `cpro clean.txt --key E --capo 4 --remove-capo` → body in E
+    (diatonic E-sharps: `[E] [C#m] [F#m] [A] [B]`, slash `[E/D#] [C#m/B] [E/G#]`), `{key: E}` **unchanged**,
+    **no `{capo}` field**, no `(Capo 4)` line.
+     Spelling is diatonic-in-E: the root of Am +4 -> C#m,
+     not the flat enharmonic Dm (matches `ggt transpose`'s auto/sharp convention).
+- `cpro clean.txt --key E --remove-capo` (no `--capo`) → **error**.
+- Walk-downs / raw-text annotations (`F# - F`, `x2`, `N.C.`) pass through
+     unchanged under `--remove-capo`: `parseChord` rejects symbols with a space
+     (same as `ggt transpose`); fixed by hand afterwards. Single/slash chords shift.
+- Section headers unchanged in both modes; no metadata line moves except the
+    de-capo-affecting ones.
+- Full-suite test passes; `make build`/`make test` green.
 
 ---
 
 ## 9. Verification log
 
-(empty — pending implementation, after the `cpro`→`cpro` rename and
- the §5 decision.)
+### 2026-08-21 implementation landed
+
+- `go build ./...`, `go vet ./...`, `go test ./...`: all packages green
+  (cmd/ggt, internal/cpro, internal/music, internal/version).
+- End-to-end on `ignored/better-together-clean.txt`:
+   - MODE 1 `--key E --capo 4`: C-shapes, `{capo: 4}`, 0 `(Capo N)` lines.
+   - MODE 2 `--key E --capo 4 --remove-capo`: E-shapes `[E] [C#m] [F#m] ...`,
+     `{key: E}` kept, `{capo}` absent, 0 `(Capo N)` lines.
+   - MODE 3 `--key E --remove-capo`: error, exit 1.
+   - walk-down `(F# - F)` passes through unchanged.
+- cpro.go output switched from `fmt.Print` to `cmd.OutOrStdout()` so
+  `cmd/ggt/cpro_test.go` (execCpr) can capture output (mirrors transpose).
+- `TransposeCProBody` ignores `{key:...}`/metadata, shifts brackets +N;
+  covered by `TestTransposeCProBody`.
