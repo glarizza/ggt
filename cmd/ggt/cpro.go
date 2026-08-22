@@ -27,9 +27,9 @@ func newCProCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "cpro [INPUT]",
-		Short: "Convert a tab chart to BandHelper .cpro format",
+		Short: "Converts a tab chart to a ChordPro format .cpro file",
 		Long: "cpro reads a plain-text guitar tab chart and reformats it\n" +
-				"into BandHelper .cpro format with inline chord placement.\n\n" +
+				"into a ChordPro-format .cpro file with inline chord placement.\n\n" +
 				"Chords placed immediately before the word they align with.\n" +
 				"Section headers ([Verse 1], [Chorus], etc.) insert a blank line\n" +
 				"between sections. Standalone chord lines are bracketed in place.\n" +
