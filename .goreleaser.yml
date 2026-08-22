@@ -22,6 +22,7 @@ builds:
        - "-X ggt/internal/version.Version={{ .Version }}"
        - "-X ggt/internal/version.GitCommit={{ .ShortCommit }}"
        - "-X ggt/internal/version.BuildDate={{ .Date }}"
+       - "-X ggt/internal/version.Build=release"
 
 archives:
    - id: default

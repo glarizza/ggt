@@ -9,16 +9,18 @@ VERSION    ?= $(shell cat $(VERSION_FILE) 2>/dev/null || echo 0.0.0)
 GITCOMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILDDATE  ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 PKG_VERSION:= ggt/internal/version
+BUILDMODE   ?= dev      # "dev" for a `make build`, "release" for goreleaser
 LDFLAGS       := -s -w \
                  -X $(PKG_VERSION).Version=$(VERSION) \
                  -X $(PKG_VERSION).GitCommit=$(GITCOMMIT) \
-                 -X $(PKG_VERSION).BuildDate=$(BUILDDATE)
+                 -X $(PKG_VERSION).BuildDate=$(BUILDDATE) \
+                 -X $(PKG_VERSION).Build=$(BUILDMODE)
 
 .PHONY: help build build-stamp test run fmt vet clean version-patch version-minor version-major
 
 help:
 	@echo "Targets:"
-	@echo "  make build             Build the binary into $(BUILD_DIR)/$(BINARY)"
+	@echo "  make build  Stamped dev build ($(BUILD_DIR)/$(BINARY): VERSION+commit+date, mode dev)"
 	@echo "  make test              Run the test suite"
 	@echo "  make run FILE=path     Build (if needed) and run 'ggt cpro' on FILE, print to stdout"
 	@echo "  make run FILE=path OUT=path  Run, write to OUT instead"
@@ -26,13 +28,18 @@ help:
 	@echo "  make vet               go vet all packages"
 	@echo "  make clean             Remove build artifacts"
 
+# `build` is the day-to-day target and it STAMPS the binary with the semantic
+# VERSION, the short HEAD commit, the build date, and the build mode (the
+# default "dev"). `ggt version` then tells you what you have and whether it
+# postdates a feature. Run `make build BUILDMODE=release` for a release binary.
+
 build:
 	mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY) $(CMD)
+	go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) $(CMD)
 
-build-stamp:
-		mkdir -p $(BUILD_DIR)
-		go build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) $(CMD)
+# `build-stamp` is a kept alias: every build is now stamped, so it is just build.
+build-stamp: build
+	@echo "build-stamp is now an alias of build (all builds are stamped)."
 
 test:
 	go test ./... -v

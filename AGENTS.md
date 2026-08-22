@@ -121,10 +121,38 @@ words themselves are replaced. The replacement is deterministic
 ## Build & Test
 
 ```
-make build    # → bin/ggt
-make test     # go test ./...
-make run FILE=path.txt   # build + run ggt cpro on path
+make build                   # -> bin/ggt  (STAMPED: VERSION + HEAD commit
+                              + build date + mode "dev"; ggt version reports it)
+make test                    # go test ./...
+make run FILE=path.txt       # build + run the converter on path
+make build BUILDMODE=release # mint a release-flavoured binary locally
+make version-minor           # bump 0.2.0 -> 0.3.0   (new feature)
+make version-patch           # bump 0.2.0 -> 0.2.1   (bug fix)
+make version-major           # bump 0.2.0 -> 1.0.0   (breaking CLI change)
 ```
+
+## Versioning (SemVer, pre-1.0.0 discipline)
+
+We respect semantic versioning **a little bit** while pre-1.0.0:
+
+- **New capability / feature** → **bump minor**: `make version-minor`  (…0.2.0 → 0.3.0).   Minor is "free" until 1.0.0.
+- **Bug fix** → **bump patch**: `make version-patch` (…0.2.0 → 0.2.1).
+- **Breaking CLI change** → **bump major**: `make version-major` (rare before
+  1.0.0; use it the day we break the public contract).
+
+Rules of the road:
+
+1. Bump `VERSION` (repo root — the sole human source of truth) **in the same
+   commit as the code** it tracks, via a bump target, so the build stamps a
+   version that matches reality; a mismatch would let `ggt version` lie.
+2. Pre-1.0.0 the version string stays **pure** (no `-dev` suffix); the
+   "local vs release" distinction lives in the `Build` stamp field that
+   `ggt version` prints (`local build` vs `release`), not in the semver string.
+3. A plain `go build` is deliberately UN-stamped and honestly reports
+   `dev / unknown / source (un-stamped)`; the Makefile build is what traces a
+   binary to a version + commit, answering "does ./bin/ggt have that feature?".
+4. Official go-releaser / git-tag releases are **deferred** while features land;
+   `Build=release` is already wired into `.goreleaser.yml` for when we get there.
 
 ---
 
