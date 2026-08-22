@@ -1,9 +1,9 @@
-// Package chopro classifies raw tab-chart lines and recognizes chord
+// Package cpro classifies raw tab-chart lines and recognizes chord
 // tokens vs. lyric text vs. section headers.
 //
 // It was originally three separate packages (parser, placer, chart) that
-// have been merged into a single package for the ggt chopro subcommand.
-package chopro
+// have been merged into a single package for the ggt cpro subcommand.
+package cpro
 
 import "regexp"
 

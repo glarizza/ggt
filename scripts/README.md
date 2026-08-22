@@ -2,25 +2,25 @@
 
 Two Python helpers sit **outside** the `ggt` binary on purpose. They compose
 with it through the file/stream boundary and evolve on their own cadence
-(both track *tab websites*, not the chopro's internals). `ggt` graduates
+(both track *tab websites*, not the cpro's internals). `ggt` graduates
 anything to a subcommand only when there's a real feature reason, never
 speculatively.
 
 ```
 scripts/clean_tab.py      in.txt   ->  in.cleaned.txt        strip web / tab noise
          |
-ggt chopro in.cleaned.txt --key K --capo N --time T --title "..." -o out.chopro
+ggt cpro in.cleaned.txt --key K --capo N --time T --title "..." -o out.cpro
          |
- out.chopro   --imported into BandHelper
+ out.cpro   --imported into BandHelper
 ```
 
 ---
 
 ## clean_tab.py
 
-Strip the noise that surrounds a web-downloaded tab so `ggt chopro` gets a
+Strip the noise that surrounds a web-downloaded tab so `ggt cpro` gets a
 clean chord-over-lyric body. Song metadata is *not* written into the body —
-it is passed to `ggt chopro` as flags. `clean` only *removes* things.
+it is passed to `ggt cpro` as flags. `clean` only *removes* things.
 
 ```bash
 python3 scripts/clean_tab.py in.txt                 # -> stdout
@@ -40,10 +40,10 @@ headers, tab-lane rows, `X` markers, walkdowns — is preserved. A fixture is
 a git-trackable test input that exercises the real chart shape without
 committing real lyrics.
 
-Chord-vs-lyric is decided by **mirroring `ggt`'s own chopro parser**
-(`internal/chopro/parser.go`): a token is treated as a chord/annotation iff
-chopro's regexes accept it (with length/lowercase guards so real words are
-never mistaken for chords). If the two ever drift, chopro's tests are the
+Chord-vs-lyric is decided by **mirroring `ggt`'s own cpro parser**
+(`internal/cpro/parser.go`): a token is treated as a chord/annotation iff
+cpro's regexes accept it (with length/lowercase guards so real words are
+never mistaken for chords). If the two ever drift, cpro's tests are the
 source of truth and this script's regexes are brought in line.
 
 ```bash
@@ -60,5 +60,5 @@ the *cleaned* output into `sample-tabs/` under a generic number.
 - **Never commit real lyrics or tabs.** Real charts live in `ignored/`
   (gitignored). Committable fixtures are scrambled and named with generic
    numbers (`sample_08.txt`), never real song or artist names.
-- `output/` (gitignored) holds cleaned tabs and generated `.chopro` files
+- `output/` (gitignored) holds cleaned tabs and generated `.cpro` files
   for BandHelper import — never committed.

@@ -70,10 +70,10 @@ func TestTransposeSymbol(t *testing.T) {
 	}
 }
 
-// TestTransposeChoproText covers the file-level contract: brackets
-// transposed, {key:} rewritten, everything else in a chopro output
+// TestTransposeCProText covers the file-level contract: brackets
+// transposed, {key:} rewritten, everything else in a cpro output
 // left alone.
-func TestTransposeChoproText(t *testing.T) {
+func TestTransposeCProText(t *testing.T) {
 	in := "" +
 		"{key: E}\n" +
 		"{capo: 3}\n" +
@@ -82,7 +82,7 @@ func TestTransposeChoproText(t *testing.T) {
 		"[G]better [D]better\n" +
 		"[F#7] a chord\n" +
 		"[F# - F] a walkdown\n"
-	out := TransposeChoproText(in, -3, StyleSharps)
+	out := TransposeCProText(in, -3, StyleSharps)
 
 	// E->C, G->E, D->B, F#->D, F# - F -> unchanged (walkdown).
 	if got := KeyOf(out); got != "C#" {

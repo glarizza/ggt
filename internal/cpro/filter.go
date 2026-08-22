@@ -1,4 +1,4 @@
-// Package chopro — filter and header-emission layer.
+// Package cpro — filter and header-emission layer.
 //
 // This file provides the "pre-processing" layer that sits between
 // parser (classifies lines) and chart (orchestrates the full walk).
@@ -8,9 +8,9 @@
 //   - maybeSectionBreak: insert a blank line when a section boundary is hit
 //   - HeaderOpts/emitHeader/capoBodyLine: BandHelper {key: value} header
 //
-// import "ggt/internal/chopro" — package chopro
+// import "ggt/internal/cpro" — package cpro
 
-package chopro
+package cpro
 
 import (
 	"fmt"
@@ -60,7 +60,7 @@ func maybeSectionBreak(out *[]string) {
 	}
 }
 
-// HeaderOpts holds optional fields for the {key: value} .chopro header.
+// HeaderOpts holds optional fields for the {key: value} .cpro header.
 type HeaderOpts struct {
 	Title    string
 	Artist   string

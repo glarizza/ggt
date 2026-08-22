@@ -1,8 +1,8 @@
 // Command ggt is Gary's Guitar Tool — a multi-subcommand CLI for
-// working with guitar chord charts and .chopro files.
+// working with guitar chord charts and .cpro files.
 //
 // ggt
-//   chopro      Convert a tab chart to BandHelper .chopro format
+//   cpro      Convert a tab chart to BandHelper .cpro format
 
 package main
 

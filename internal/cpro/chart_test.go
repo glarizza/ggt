@@ -1,4 +1,4 @@
-package chopro
+package cpro
 
 import (
 	"strings"

@@ -267,7 +267,7 @@ Total surface: ~5 files, one new dir.
     unstamped`; `ggt -v` reports `ggt dev`.
 2. `make build-stamp && bin/ggt version` reports the `VERSION`-file version,
     a short commit hash (git `--short`), and a real timestamp.
-3. `bin/ggt version --help` lists nothing surprising; `bin/ggt chopro --version`
+3. `bin/ggt version --help` lists nothing surprising; `bin/ggt cpro --version`
     inherits the shortcut.
 4. `go test ./internal/version/...` covers stamped + unstamped `Full()`.
 5. No `ggt` subcommand prints a hard-coded version literal anywhere (grep-gate:

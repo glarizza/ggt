@@ -1,5 +1,5 @@
-// Package chopro merges a chord line with the lyric line beneath it
-// into a single inline-chord line (what BandHelper calls .chopro format).
+// Package cpro merges a chord line with the lyric line beneath it
+// into a single inline-chord line (what BandHelper calls .cpro format).
 //
 // Placement rule (deliberately simple — no mid-word splitting):
 //
@@ -20,12 +20,12 @@
 // Outer parens on chord tokens are stripped before bracketing:
 // (Gm) → [Gm]. Parens in tab notation mean "chord ringing from previous
 // phrase" or "still holding this chord" — not semantically meaningful
-// in .chopro output.
+// in .cpro output.
 //
 // "N.C." tokens are rendered as literal "(N.C.)" text rather than a
 // bracketed chord, since it isn't a chord to be transposed or looked up.
 
-package chopro
+package cpro
 
 import "strings"
 

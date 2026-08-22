@@ -1,5 +1,5 @@
-// chopro subcommand: reads a tab chart file (or stdin via `-`) and
-// outputs BandHelper .chopro format to stdout or a file.
+// cpro subcommand: reads a tab chart file (or stdin via `-`) and
+// outputs BandHelper .cpro format to stdout or a file.
 
 package main
 
@@ -9,10 +9,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"ggt/internal/chopro"
+	"ggt/internal/cpro"
 )
 
-func newChoproCmd() *cobra.Command {
+func newCProCmd() *cobra.Command {
 	// flag vars
 	var (
 		output   string
@@ -26,10 +26,10 @@ func newChoproCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "chopro [INPUT]",
-		Short: "Convert a tab chart to BandHelper .chopro format",
-		Long: "chopro reads a plain-text guitar tab chart and reformats it\n" +
-				"into BandHelper .chopro format with inline chord placement.\n\n" +
+		Use:   "cpro [INPUT]",
+		Short: "Convert a tab chart to BandHelper .cpro format",
+		Long: "cpro reads a plain-text guitar tab chart and reformats it\n" +
+				"into BandHelper .cpro format with inline chord placement.\n\n" +
 				"Chords placed immediately before the word they align with.\n" +
 				"Section headers ([Verse 1], [Chorus], etc.) insert a blank line\n" +
 				"between sections. Standalone chord lines are bracketed in place.\n" +
@@ -53,7 +53,7 @@ func newChoproCmd() *cobra.Command {
 					}
 			}
 
-			opts := chopro.HeaderOpts{
+			opts := cpro.HeaderOpts{
 				Title:    title,
 				Artist:   artist,
 				Key:      key,
@@ -63,7 +63,7 @@ func newChoproCmd() *cobra.Command {
 				Duration: duration,
 				}
 
-			result := chopro.Convert(string(raw), opts)
+			result := cpro.Convert(string(raw), opts)
 
 			if output != "" {
 				if err := os.WriteFile(output, []byte(result), 0o644); err != nil {

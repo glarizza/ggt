@@ -20,7 +20,7 @@ help:
 	@echo "Targets:"
 	@echo "  make build             Build the binary into $(BUILD_DIR)/$(BINARY)"
 	@echo "  make test              Run the test suite"
-	@echo "  make run FILE=path     Build (if needed) and run 'ggt chopro' on FILE, print to stdout"
+	@echo "  make run FILE=path     Build (if needed) and run 'ggt cpro' on FILE, print to stdout"
 	@echo "  make run FILE=path OUT=path  Run, write to OUT instead"
 	@echo "  make fmt               gofmt all source files"
 	@echo "  make vet               go vet all packages"
@@ -39,13 +39,13 @@ test:
 
 run: build
 ifndef FILE
-	$(error Usage: make run FILE=path/to/chart.txt [OUT=path/to/out.chopro])
+	$(error Usage: make run FILE=path/to/chart.txt [OUT=path/to/out.cpro])
 endif
 ifdef OUT
-	$(BUILD_DIR)/$(BINARY) chopro $(FILE) --output $(OUT)
+	$(BUILD_DIR)/$(BINARY) cpro $(FILE) --output $(OUT)
 	@echo "wrote $(OUT)"
 else
-	$(BUILD_DIR)/$(BINARY) chopro $(FILE)
+	$(BUILD_DIR)/$(BINARY) cpro $(FILE)
 endif
 
 fmt:

@@ -1,5 +1,5 @@
 # ggt — Gary's Guitar Tool — Design Doc
-## Phase 1: `chopro` Subcommand Migration
+## Phase 1: `cpro` Subcommand Migration
 
 **Date:** 2026-08-19
 **Status:** Approved — implementing
@@ -17,7 +17,7 @@ and all 10 unit tests pass, but:
 
 1. **UX bug** — when invoked with no args it falls through to reading stdin and
      *hangs* instead of printing a usage message.
-2. **No header** — it produces only the chord+lyric body. Real `.chopro` files
+2. **No header** — it produces only the chord+lyric body. Real `.cpro` files
     that BandHelper consumes have a `{key: value}` header block with song metadata.
 3. **Tab-chart conventions leak through** — end-of-song `X` markers and
      `(Instrumental)` lines pass through as raw lyric text.
@@ -31,9 +31,9 @@ and all 10 unit tests pass, but:
 
 ---
 
-## Findings from Inspecting Real `.chopro` Files
+## Findings from Inspecting Real `.cpro` Files
 
-Inspected ~50 files in `~/Downloads/*.chopro` (BandHelper's native format). Key
+Inspected ~50 files in `~/Downloads/*.cpro` (BandHelper's native format). Key
 observations:
 
 ### 1. Header Format — BandHelper's `{key: value}` Format
@@ -54,7 +54,7 @@ Format: `{key: value}` — curly-bracket, colon-separated, ONE per line, NO spac
 after the colon. This is NOT ChordPro `!directive!` syntax.
 `title` and `key` are nearly universal; others are optional.
 
-One outlier file (`Babylon_David_Gray.chopro`) uses `[tag] value` instead.
+One outlier file (`Babylon_David_Gray.cpro`) uses `[tag] value` instead.
 Target the dominant `{key: value}` format.
 
 ### 2. Section Markers in Real Files
@@ -67,13 +67,13 @@ The `[Verse 1]` / `[Chorus]` tab-chart section headers should be **dropped entir
 Even though BandHelper has a `{chorus}`-style capability, it doesn't support it in
 practice — confirmed by the user's real files.
 
-**However, section boundaries must still be present in the output.** All `.chopro`
+**However, section boundaries must still be present in the output.** All `.cpro`
 files that the user maintains have a single blank line between sections (verse/chorus/
 bridge boundary). See §5.
 
 ### 3. Standalone Chord Lines
 
-Real `.chopro` files consistently use these for intros/progressions:
+Real `.cpro` files consistently use these for intros/progressions:
 ```
 [D] [Dmaj7] [Bsus2/D]
 [D] [Dmaj7]
@@ -100,7 +100,7 @@ Chords wrapped in parens, e.g. `(Gm)`, appear in real tab charts and mean:
 - "This chord is still ringing from the previous phrase" (sustain/hold), or
 - "A reminder: you're still playing this chord here"
 
-Neither meaning requires the parens in `.chopro` output. **Strip outer parens
+Neither meaning requires the parens in `.cpro` output. **Strip outer parens
 from all chord tokens.** `(Gm)` → `[Gm]`, `(Dsus2/C)` → `[Dsus2/C]`.
 Only the OUTERMOST paren pair is stripped — chord names themselves don't
 contain meaningful parens.
@@ -134,30 +134,30 @@ contain meaningful parens.
 ```
 ggt                            (no subcommand → prints help + subcommand list,
                                exits non-zero, does NOT read stdin — fixes hang bug)
-     └── chopro      [INPUT]    [--output OUTPUT]    [--title ...] [--artist ...]
+     └── cpro      [INPUT]    [--output OUTPUT]    [--title ...] [--artist ...]
                                     [--key ...] [--capo N] [--tempo N] [--time T]
                                     [--duration T]    [flag: full names only in V1]
-               tab chart → .chopro file
+               tab chart → .cpro file
 ```
 
-Phase 1: `chopro` fully implemented. `transpose` is NOT part of this phase.
+Phase 1: `cpro` fully implemented. `transpose` is NOT part of this phase.
 
-### 3. `ggt chopro` CLI Interface
+### 3. `ggt cpro` CLI Interface
 
 ```bash
 # minimal: body only, just bracket reformatting
-ggt chopro input.txt
-ggt chopro input.txt --output song.chopro
+ggt cpro input.txt
+ggt cpro input.txt --output song.cpro
 
 # with header fields
-ggt chopro input.txt \
+ggt cpro input.txt \
     --title "Sample Song" \
     --artist "Some Band" \
     --key Em \
     --capo 7 \
     --tempo 120 \
     --time 4/4 \
-    --output song.chopro
+    --output song.cpro
 ```
 
 **Flags (full names only in V1 — short forms deferred until CLI stabilises):**
@@ -273,10 +273,10 @@ immediately with no header.
 ggt/
   cmd/ggt/
     main.go             thin entry: root.Execute()
-    root.go            root + chopro subcommand registration (Cobra)
-    chopro.go         chopro subcommand wiring; flag definitions
+    root.go            root + cpro subcommand registration (Cobra)
+    cpro.go         cpro subcommand wiring; flag definitions
   internal/
-    chopro/             was: internal/chart + internal/parser + internal/placer
+    cpro/             was: internal/chart + internal/parser + internal/placer
       chart.go         orchestrate: walk lines, pair chord+lyric, apply filters
       chart_test.go
       parser.go          ← moved from internal/parser
@@ -287,7 +287,7 @@ ggt/
       filter_test.go
   testdata/
     sample_02_input.txt            saved from this session
-    sample_02_expected.chopro         expected output fixture (with --capo 7,
+    sample_02_expected.cpro         expected output fixture (with --capo 7,
                                        --key Em, --title "Sample Song")
   ai-specs/
     20260819-ggt-design.md            this file
@@ -296,7 +296,7 @@ ggt/
   README.md
 ```
 
-**Rationale:** Merging the three packages into one `chopro` package keeps the
+**Rationale:** Merging the three packages into one `cpro` package keeps the
 "unit of work" together. `filter.go` is the new layer that sits between
 `parser` (classifies lines) and `chart` (orchestrates), handling
 drop/filters, header emission, and section-break insertion.
@@ -308,36 +308,36 @@ drop/filters, header emission, and section-break insertion.
 **New:**
 - `cmd/ggt/main.go` — replaces `cmd/chordpro-reformat/main.go`
 - `cmd/ggt/root.go` — root Cobra command + subcommand registration
-- `cmd/ggt/chopro.go` — chopro subcommand flags (`--title`, `--artist`, `--key`,
+- `cmd/ggt/cpro.go` — cpro subcommand flags (`--title`, `--artist`, `--key`,
      `--capo`, `--tempo`, `--time`, `--duration`, `--output`)
-- `internal/chopro/filter.go` — NEW: `HeaderOpts` struct, `emitHeader()`,
+- `internal/cpro/filter.go` — NEW: `HeaderOpts` struct, `emitHeader()`,
      `maybeSectionBreak()`, `isDropLine()`, `stripParens()`
-- `internal/chopro/filter_test.go` — tests for all new logic
+- `internal/cpro/filter_test.go` — tests for all new logic
 - `testdata/sample_02_input.txt` — saved from this session
-- `testdata/sample_02_expected.chopro` — expected output fixture
+- `testdata/sample_02_expected.cpro` — expected output fixture
 
 **Moved (package path changes; logic mostly same, minor edits for new filters):**
-- `internal/chart/chart.go` → `internal/chopro/chart.go`
+- `internal/chart/chart.go` → `internal/cpro/chart.go`
      - `Convert()` gains `HeaderOpts` parameter
      - Section handling changes to call `maybeSectionBreak()`
      - `wrapStandaloneChordLine` calls `stripParens()` before bracketing
-- `internal/chart/chart_test.go` → `internal/chopro/chart_test.go`
+- `internal/chart/chart_test.go` → `internal/cpro/chart_test.go`
      - `TestDropsSectionHeadersAndBlankLines` — update expected output (now has
         section boundary blank line)
      - `TestStandaloneChordLineNoLyricBelow` — update expected `[(Em)]` → `[Em]`
-- `internal/parser/parser.go` → `internal/chopro/parser.go`
+- `internal/parser/parser.go` → `internal/cpro/parser.go`
      - No functional changes
-- `internal/parser/parser_test.go` → `internal/chopro/parser_test.go`
+- `internal/parser/parser_test.go` → `internal/cpro/parser_test.go`
      - No changes
-- `internal/placer/placer.go` → `internal/chopro/placer.go`
+- `internal/placer/placer.go` → `internal/cpro/placer.go`
      - `renderToken` calls `stripParens()` before bracketing
-- `internal/placer/placer_test.go` → `internal/chopro/placer_test.go`
+- `internal/placer/placer_test.go` → `internal/cpro/placer_test.go`
      - Add test for paren-stripping: `(Gm)` + "hi" → `[Gm]hi`
 
 **Modified:**
 - `go.mod` — module `ggt`, add `github.com/spf13/cobra`
-- `Makefile` — update binary name, paths, add `chopro` run target
-- `README.md` — new docs for `ggt chopro` interface
+- `Makefile` — update binary name, paths, add `cpro` run target
+- `README.md` — new docs for `ggt cpro` interface
 
 **Deleted:**
 - `cmd/chordpro-reformat/` (directory)
@@ -354,7 +354,7 @@ drop/filters, header emission, and section-break insertion.
 | `stripParens` strips parens from non-chord tokens | `stripParens` is NOT used for annotations (`x2`, `N.C.`, `\|`, etc.) — only for actual chord tokens. Annotations still go through `IsAnnotationToken` path unchanged |
 | `--capo N` with N=0 or negative | Cobra `Int` flag defaults to 0 → no capo emitted. Negative not meaningful; guard with `if capo > 0` |
 | Section break inserts blank at very start of output | Skip the leading blank: when `maybeSectionBreak` triggers and the output slice is empty, don't append |
-| `testdata/sample_02_expected.chopro` fixture gets stale | Regenerate with `ggt chopro testdata/sample_02_input.txt --title "Sample Song" --key Em --capo 7 -o testdata/sample_02_expected.chopro` after any filter change; diff in test |
+| `testdata/sample_02_expected.cpro` fixture gets stale | Regenerate with `ggt cpro testdata/sample_02_input.txt --title "Sample Song" --key Em --capo 7 -o testdata/sample_02_expected.cpro` after any filter change; diff in test |
 
 ---
 
@@ -380,14 +380,14 @@ drop/filters, header emission, and section-break insertion.
 
 **Integration level** (manual smoke test):
 ```bash
-ggt chopro testdata/sample_02_input.txt \
+ggt cpro testdata/sample_02_input.txt \
     --title "Sample Song" --key Em --capo 7 \
-    --output /tmp/out.chopro
-diff /tmp/out.chopro testdata/sample_02_expected.chopro    # no output = PASS
+    --output /tmp/out.cpro
+diff /tmp/out.cpro testdata/sample_02_expected.cpro    # no output = PASS
 
 ggt                 # prints help, exits 1, does NOT hang
-ggt chopro          # prints usage, exits 1, does NOT hang
-ggt chopro -        # reads stdin (no positional = error; - = stdin)
+ggt cpro          # prints usage, exits 1, does NOT hang
+ggt cpro -        # reads stdin (no positional = error; - = stdin)
 ```
 
 ---

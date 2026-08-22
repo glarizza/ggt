@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 clean_tab.py -- Strip noise from a web-downloaded guitar tab so it produces
-a clean chord-over-lyric body suitable for `ggt chopro`.
+a clean chord-over-lyric body suitable for `ggt cpro`.
 
 WHY THIS EXISTS
 ----------------
@@ -9,20 +9,20 @@ When a tab is downloaded from a web page you get far more than the tab:
 site chrome, a metadata envelope (title, URL, version/difficulty,
 `Key:` / `Capo:` / `Tuning:` prose lines, free-form notes), occasional
 6-string *tablature* lanes (`e|--12--|`, `B|---10/12----|`), and a
-trailing slide/harmonic legend after an asterisk banner. `ggt chopro`
+trailing slide/harmonic legend after an asterisk banner. `ggt cpro`
 consumes a clean chord-over-lyric body; if any of this noise survives it
 is rendered as lyric garbage in BandHelper, and TAB lanes in particular
 cannot be displayed at all (BandHelper has no tab renderer).
 
 Song metadata (title, artist, key, capo, tempo, time, duration) is NOT
-written into the body -- it is passed to `ggt chopro` as command-line
+written into the body -- it is passed to `ggt cpro` as command-line
 flags. `clean` only *removes* things so they don't corrupt the body.
 
 This is a standalone script on purpose (see scripts/README.md). It has no
 coupling to the ggt binary and evolves against tab *websites*; it composes
 with ggt through the file/pipe boundary:
 
-    python3 scripts/clean_tab.py in.txt | ggt chopro --key F# --capo 5 -o out
+    python3 scripts/clean_tab.py in.txt | ggt cpro --key F# --capo 5 -o out
 
 A new tricky tab that the cleaner mangles is the trigger to (a) add/extend
 a pass here, and (b) freeze that tab into a copyright-clean fixture with

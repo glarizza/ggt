@@ -2,7 +2,7 @@
 
 ## Project
 
-`ggt` is a CLI tool for working with guitar chord charts and `.chopro` files
+`ggt` is a CLI tool for working with guitar chord charts and `.cpro` files
 (used by BandHelper). It started as a single-purpose tab-to-chordpro
 reformatter and is being expanded into a multi-subcommand tool.
 
@@ -34,22 +34,22 @@ reconstruct from OUTCOME alone.>
 
 ```
 PROBLEM:
-The chopro formatter had no way to produce a BandHelper `{key: value}`
+The cpro formatter had no way to produce a BandHelper `{key: value}`
 header block. All output was bare chord+lyric lines, making the
-resulting .chopro files incomplete.
+resulting .cpro files incomplete.
 
 SOLUTION:
-- Added `internal/chopro/filter.go` with `HeaderOpts` struct and
+- Added `internal/cpro/filter.go` with `HeaderOpts` struct and
   `emitHeader()` function
 - Wired `--title`, `--artist`, `--key`, `--capo`, `--tempo`, `--time`,
-  `--duration` flags into `cmd/ggt/chopro.go`
+  `--duration` flags into `cmd/ggt/cpro.go`
 - `--capo N` now also prepends `(Capo N)` as the first content line
 - Added `filter_test.go` with unit tests for all header fields
 
 OUTCOME:
-`ggt chopro` can now produce complete, BandHelper-ready `.chopro` files
+`ggt cpro` can now produce complete, BandHelper-ready `.cpro` files
 with full metadata header. All 25 tests pass. The
-`sample_02_expected.chopro` fixture is a realistic end-to-end example.
+`sample_02_expected.cpro` fixture is a realistic end-to-end example.
 ```
 
 ---
@@ -91,7 +91,7 @@ ignored/my_song.txt
 ignored/another_song.txt
 ```
 
-You can run `ggt chopro ignored/my_song.txt` freely — the output
+You can run `ggt cpro ignored/my_song.txt` freely — the output
 to stdout (or a local file) is never tracked by git.
 
 ### Scrambled test data
@@ -109,7 +109,7 @@ Two rules:
 
 2. **Never use a real song name as a filename.** Test data files use
 generic numeric names like `sample_01.txt`, `sample_02_capo.txt`,
-`sample_04_expected.chopro`. Do NOT name them after songs or artists.
+`sample_04_expected.cpro`. Do NOT name them after songs or artists.
 
 The scrambler preserves all chord-column positions, section structure,
 blank lines, X markers, and (Instrumental) lines — only the lyric
@@ -123,7 +123,7 @@ words themselves are replaced. The replacement is deterministic
 ```
 make build    # → bin/ggt
 make test     # go test ./...
-make run FILE=path.txt   # build + run ggt chopro on path
+make run FILE=path.txt   # build + run ggt cpro on path
 ```
 
 ---

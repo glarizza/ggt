@@ -1,14 +1,14 @@
-// ggt transpose — native-key transposition of a .chopro file that
-// has already been run through ggt chopro.
+// ggt transpose — native-key transposition of a .cpro file that
+// has already been run through ggt cpro.
 //
 // It is a pure mechanical chromatic shift of the bracket chords and
 // a rewrite of the {key: V} header.  It never decides whether a key
 // is "correct"; that judgment is the AI orchestrator's job, made
 // against a published-key lookup and not this tool's.
 //
-// Input model: the .chopro file chopro emits is already bracketed
+// Input model: the .cpro file cpro emits is already bracketed
 // ([C] lyric) and width-independent, so transposing it never shifts
-// columns — that is why this step runs AFTER chopro.
+// columns — that is why this step runs AFTER cpro.
 //
 // Three input forms, exactly one required:
 //
@@ -24,8 +24,8 @@
 //
 // ggt transpose INPUT  --down N
 // ggt transpose INPUT  --to-key C:
-// ggt chopro --key E --capo 5 -o out.chopro IN.txt
-// ggt transpose out.chopro --to-key C:   (native-key version)
+// ggt cpro --key E --capo 5 -o out.cpro IN.txt
+// ggt transpose out.cpro --to-key C:   (native-key version)
 
 package main
 
@@ -51,8 +51,8 @@ func newTransposeCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "transpose [INPUT]",
-		Short: "Transpose a .chopro file to another key",
-		Long: "transpose reads a .chopro file (chopro's output) and shifts " +
+		Short: "Transpose a .cpro file to another key",
+		Long: "transpose reads a .cpro file (cpro's output) and shifts " +
 			"every bracket chord by a number of semitones, rewriting the " +
 			"{key: V} header to the new tonic.  Section headers, walk-downs " +
 			"(F# - F), annotations (x2, N.C.), {capo: N} and all other " +
@@ -148,7 +148,7 @@ func newTransposeCmd() *cobra.Command {
 			semis = d
 		}
 
-		result := music.TransposeChoproText(text, semis, style)
+		result := music.TransposeCProText(text, semis, style)
 
 		switch {
 		case inplace:

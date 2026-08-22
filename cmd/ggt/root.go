@@ -23,9 +23,9 @@ var rootCmd = &cobra.Command{
 	Short: "Gary's Guitar Tool",
 	Long: "ggt — Gary's Guitar Tool\n\n" +
 		"A multi-subcommand CLI for working with guitar chord charts and\n" +
-		"BandHelper .chopro files.\n\n" +
+		"BandHelper .cpro files.\n\n" +
 		"Available subcommands:\n" +
-		"  chopro   Convert a tab chart to .chopro format",
+		"  cpro   Convert a tab chart to .cpro format",
 	SilenceUsage:  false,
 	SilenceErrors: false,
 }
@@ -57,6 +57,6 @@ func init() {
 	}
 
 	rootCmd.AddCommand(newTransposeCmd())
-	rootCmd.AddCommand(newChoproCmd())
+	rootCmd.AddCommand(newCProCmd())
 	rootCmd.AddCommand(newVersionCmd())
 }

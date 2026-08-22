@@ -1,6 +1,6 @@
 // Package music provides the single missing piece in the ggt pipeline:
 // native-key transposition of a chord chart that has already been run
-// through ggt chopro.
+// through ggt cpro.
 //
 // The chromatic (semitone) shift and the accidental spelling are
 // delegated to github.com/brettbuddin/musictheory.  What this package
@@ -10,7 +10,7 @@
 // of a slash chord, and reassembles the output the way BandHelper
 // expects — "[Bm7/D#]".
 //
-// It also transposes the {key: …} header of a chopro output and
+// It also transposes the {key: …} header of a cpro output and
 // leaves section headers, walk-downs (F# - F), and annotation tokens
 // (x2, N.C.) completely untouched to be handled by a human after the
 // fact.
@@ -57,10 +57,10 @@ var diatonicFor = map[byte]int{
 // accidentals (# or b, possibly multiple).
 var rootRe = regexp.MustCompile(`^([A-Ga-g])([#b]*)`)
 
-// bracketRe finds chopro's inline bracketed chord tokens.
+// bracketRe finds cpro's inline bracketed chord tokens.
 var bracketRe = regexp.MustCompile(`\[([^\]]+)\]`)
 
-// keyLineRe matches the leading {key: …} header of a chopro output and
+// keyLineRe matches the leading {key: …} header of a cpro output and
 // captures the value.
 var keyLineRe = regexp.MustCompile(`^(\{key:\s*)([^}]*?)(\s*\})$`)
 
@@ -184,12 +184,12 @@ func TransposeSymbol(sym string, semis int, style Style) (string, bool) {
 	return out, true
 }
 
-// TransposeChoproText transposes every bracketed chord token in a
-// chopro output by semis semitones, rewrites the leading {key: V}
+// TransposeCProText transposes every bracketed chord token in a
+// cpro output by semis semitones, rewrites the leading {key: V}
 // header to the transposed tonic, and leaves everything else
 // (section headers, walk-downs, annotation tokens, {capo: N}, …)
 // exactly as it is.
-func TransposeChoproText(text string, semis int, style Style) string {
+func TransposeCProText(text string, semis int, style Style) string {
 	lines := strings.Split(text, "\n")
 	for i, line := range lines {
 		if m := keyLineRe.FindStringSubmatch(line); m != nil {

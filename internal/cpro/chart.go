@@ -1,4 +1,4 @@
-// Package chopro drives the full conversion: walks a classified chart
+// Package cpro drives the full conversion: walks a classified chart
 // line by line, dispatching chord+lyric pairs to PlaceChords,
 // standalone chord lines to wrapStandaloneChordLine, and tab-chart
 // section markers to maybeSectionBreak (which inserts a single blank
@@ -7,7 +7,7 @@
 // Section headers like [Verse 1], [Chorus], [Intro], [Outro] are NOT
 // emitted as text — they are dropped. A blank-line separator is inserted
 // at each section boundary so verse/chorus/bridge structure is preserved
-// in the .chopro output.
+// in the .cpro output.
 //
 // End-of-song markers (X alone on a line) and standalone
 // "(Instrumental)" lines are dropped entirely.
@@ -16,13 +16,13 @@
 // prepended to the output. If --capo N was set, the header has
 // `{capo: N}` AND a `(Capo N)` visual-cue line is prepended to the body.
 
-package chopro
+package cpro
 
 import "strings"
 
 // wrapStandaloneChordLine lives in filter.go.
 
-// Convert reads the full text of a tab chart and returns .chopro output.
+// Convert reads the full text of a tab chart and returns .cpro output.
 // If opts has any fields set, a {key: value} header is prepended.
 // If opts.Capo > 0, a "(Capo N)" line is also prepended to the body.
 func Convert(text string, opts HeaderOpts) string {

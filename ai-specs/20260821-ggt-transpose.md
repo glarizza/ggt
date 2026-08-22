@@ -10,7 +10,7 @@ implementation must satisfy.
 
 ## 1. Problem statement
 
-ggt can clean a downloaded tab and place its chords into BandHelper `.chopro`
+ggt can clean a downloaded tab and place its chords into BandHelper `.cpro`
 structure, but it cannot do the **music-theory** step BandHelper actually needs:
 the **native-key transposition**.
 
@@ -30,7 +30,7 @@ Today that math is done on Copilot / Claude by hand, per song — the exact
 a local model. We want `ggt transpose` to do it, deterministically, with
 **zero AI in the loop**.
 
-This is the single big missing piece; `clean_tab.py` + `ggt chopro` already cover
+This is the single big missing piece; `clean_tab.py` + `ggt cpro` already cover
 everything before and after it.
 
 ---
@@ -99,7 +99,7 @@ itself vs a semitone offset) from ever colliding on one command line. The tool
      original / native key is N semitones lower. Run `--down N`."
      *(Why `--down` not `--up`: the tab's shapes sound N semitones **above** the
       true key; to return to the true key you go the other way.)*
-3. **Run the tool:** `ggt transpose input.chopro --down N -o output/song.chopro`.
+3. **Run the tool:** `ggt transpose input.cpro --down N -o output/song.cpro`.
 4. **Do the verification `ggt transpose` itself does *not*:**
       - *parallel* web search for the song's published key — musicnotes first
           (publisher sheet — best available), then Wikipedia's infobox, then
@@ -133,7 +133,7 @@ the natural v2 upgrade. Not a v1 blocker.
 
 ### 3.5 I/O
 
-Mirrors `ggt chopro`'s plumbing:
+Mirrors `ggt cpro`'s plumbing:
 - Positional input, or `-` for stdin.
 - `-o out` / `--out` writes to a file; no `-o` → stdout.
 - `--inplace` rewrites the source file in place.
@@ -149,17 +149,17 @@ Mirrors `ggt chopro`'s plumbing:
 1.  download + login          (skill: browser MCP)
         ->  ignored/real.txt
 2.  clean                     (scripts/clean_tab.py)
-        ->  output/song.cleaned.chopro
-3.  chopro                       (ggt chopro --key E --capo 3 --title ... -o ...)
-        ->  output/song.structure.chopro    [chords in E shapes; {key:E}, {capo:3}]
+        ->  output/song.cleaned.cpro
+3.  cpro                       (ggt cpro --key E --capo 3 --title ... -o ...)
+        ->  output/song.structure.cpro    [chords in E shapes; {key:E}, {capo:3}]
 4.  transpose --down 3        (ggt transpose --down N  OR  --to-key K, NEW)
-        ->  output/song.chopro              [chords shifted; {key: native}; {capo:3} kept]   * BandHelper-ready
+        ->  output/song.cpro              [chords shifted; {key: native}; {capo:3} kept]   * BandHelper-ready
 5.  import into BandHelper    (hand; future UI automation)
 ```
 
-`ggt chopro` runs *before* `ggt transpose` because chopro turns a column-aligned
+`ggt cpro` runs *before* `ggt transpose` because cpro turns a column-aligned
 chart into BandHelper's inline `[chord] lyric` form — a width-independent
-string form transpose can safely rewrite. Transposing *before* chopro shifts the
+string form transpose can safely rewrite. Transposing *before* cpro shifts the
 column widths and breaks the placer (see §6).
 
 The skill orchestrates 1–5. `ggt transpose` owns step 4.
@@ -210,20 +210,20 @@ the native key, plus `{key: native}` and `{capo: N}` as a human record.**
 
 ---
 
-## 6. Why transpose runs after chopro (order)
+## 6. Why transpose runs after cpro (order)
 
-Transposing a column-aligned chart (before chopro) is a trap: **`C` is 1 character
+Transposing a column-aligned chart (before cpro) is a trap: **`C` is 1 character
 ; `F#` is 2** — every subsequent column on the line shifts right by the added
 width, and the placer (which depends on the column alignment inherited from the
-raw tab) sees garbage. Once chopro has turned chords into inline `[…]` brackets,
+raw tab) sees garbage. Once cpro has turned chords into inline `[…]` brackets,
 chord width is *irrelevant* to anything downstream — a bracket is its own token,
-not positionally tied to a column on the lyric line. So chopro first (structure
+not positionally tied to a column on the lyric line. So cpro first (structure
 + bracket placement + basic header), then transpose (shift bracket *contents*
 + rewrite the `{key}` header).
 
-The `(F# - F)` walkdown — the two-chords-in-one-bar annotation chopro currently
-misclassifies — is a **chopro-side** classification bug that lands in its output
-*before transpose ever sees the file*. Fixing it in chopro and handing transpose a
+The `(F# - F)` walkdown — the two-chords-in-one-bar annotation cpro currently
+misclassifies — is a **cpro-side** classification bug that lands in its output
+*before transpose ever sees the file*. Fixing it in cpro and handing transpose a
 clean token is the right split (Q7). Transpose never has to parse a paren form
 ; it shifts the bracket contents it is given.
 
@@ -273,7 +273,7 @@ func SemitoneDistanceDown(from, to string) int
 ```
 
 Design point: **quality rides through, never parsed.** The `chordTokenRe` in
-`internal/chopro/parser.go` already separates the root + accidental from an
+`internal/cpro/parser.go` already separates the root + accidental from an
 arbitrary suffix; reusing it means `Am/G` splits into root `A`, quality `m`,
 bass `G`, and the `m` is carried through unchanged. No "valid qualities"
 vocabulary is needed — which is why hand-roll wins; nobody maintains a quality
@@ -281,20 +281,20 @@ table.
 
 ### 7.2 `ggt transpose` command (`cmd/ggt/transpose.go`)
 
-Cobra command mirroring chopro's flag plumbing:
+Cobra command mirroring cpro's flag plumbing:
 
 | Flag | Aliases | Default | Notes |
 |---|---|---|---|
 | `--up N` / `--down N` | `-N` | one required | mutually exclusive |
 | `--to-key K` | `-k` | — | mutually exclusive with `-N` |
 | `--sharps` / `--flats` | — | `--auto` | `--auto` means "inherit" |
-| `-o` / `--out` | `--out` | stdout | as chopro |
+| `-o` / `--out` | `--out` | stdout | as cpro |
 | `--inplace` | — | off | rewrite source in place |
-| positional `INPUT` | `-` = stdin | — | as chopro |
+| positional `INPUT` | `-` = stdin | — | as cpro |
 
 `--up N`, `--down N`, `--to-key` are `MarkFlagsMutuallyExclusive`; exactly one
 must be present. `--inplace` + positional, or `-o`, or stdout — same three
-output modes as chopro.
+output modes as cpro.
 
 ### 7.3 Hand-rolled vs library — DECISION
 
@@ -315,8 +315,8 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 | `cmd/ggt/root.go` | `rootCmd.AddCommand(newTransposeCmd())` |
 | `internal/music/music.go` | Scales, `Chord`, `ParseChord`, `TransposeNote`, `Transpose`, `SemitoneDistanceDown`, `Style` |
 | `internal/music/music_test.go` | Transposition vector table — the heart of the spec |
-| `internal/chopro/filter.go` | *(separate fix, Q7)* `(F# - F)` walkdown — chopro vs transpose ownership |
-| `scripts/README.md` | Document the clean→chopro→transpose→import pipeline |
+| `internal/cpro/filter.go` | *(separate fix, Q7)* `(F# - F)` walkdown — cpro vs transpose ownership |
+| `scripts/README.md` | Document the clean→cpro→transpose→import pipeline |
 | `sample-tabs/sample_09.txt` | New scrambled-capo fixture for end-to-end test |
 | skill file `~/.pi/agent/skills/ggt-chart-pipeline/SKILL.md` | Add step 4 (transpose) to pipeline; refresh source-of-truth ranking note |
 
@@ -327,12 +327,12 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 | # | Risk / question | Status |
 |---|---|---|
 | R1 | `--auto` emits "Gb" where a player writes "F#" | Known; v2 `--prefer F# Bb …` flag. Not a blocker. |
-| R2 | Quality split mis-reads an accidental (`D#m7` loses the sharp) | Mitigated: reuse `chopro`'s `chordTokenRe`; add vectors to the test for every sharp/flat-in-quality form |
+| R2 | Quality split mis-reads an accidental (`D#m7` loses the sharp) | Mitigated: reuse `cpro`'s `chordTokenRe`; add vectors to the test for every sharp/flat-in-quality form |
 | R3 | First-chord direction error | Explicit vector test; `ggt transpose` prints a stderr warning when its first-chord root ≠ `--to-key` target |
 | R4 | BandHelper header semantics unknown | **Resolved by gary:** BH reads `key`, ignores `capo`/`transpose`; no `transpose` field written; gary sets personal transpose by hand |
 | R5 | `--to-key` with no `{key}` header | Clear error, not a silent default |
 | R6 | Borrowed chords "corrected" to diatonic | Structurally impossible: quality rides through; no substitute-lookup path |
-| R7 | `(F# - F)` walkdown misclassified by `chopro` *before* transpose | **Open (Q7).** Lean "fix in chopro first"; decoupled fix |
+| R7 | `(F# - F)` walkdown misclassified by `cpro` *before* transpose | **Open (Q7).** Lean "fix in cpro first"; decoupled fix |
 
 ---
 
@@ -349,7 +349,7 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
     - `x2 / (N.C.)` passthrough (non-chord, not shifted)
 - **First-chord assertion** — a fixture whose first chord equals the target
      key root; `--to-key <root>` → first output chord `[<root>]`.
-- **End-to-end:** `sample_09.txt` (scrambled-capo fixture) → `ggt chopro` →
+- **End-to-end:** `sample_09.txt` (scrambled-capo fixture) → `ggt cpro` →
      `ggt transpose --down N` → diff vs hand-written expected.
 - **Round-trip / idempotence:** `--up N` then `--down N` returns the input
      byte-for-byte.
@@ -364,7 +364,7 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 ### Resolved
 
 - **Q1 — output model:** output stores **native-key chords**. gary confirmed.
-- **Q2 — input:** post-chopro bracketed `.chopro`; no raw-tab input needed.
+- **Q2 — input:** post-cpro bracketed `.cpro`; no raw-tab input needed.
 - **Q3 — header fields BH consumes:** BH reads `{key}` only; `{capo}` kept as a
      human-readable record, ignored by BH; no `{transpose}` field written —
      gary sets personal transpose by hand in BH's UI per player.
@@ -376,7 +376,7 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 
 ### Still open
 
-- **Q7 — `(F# - F)` walkdown:** fix in **chopro** (lean; pre-transpose
+- **Q7 — `(F# - F)` walkdown:** fix in **cpro** (lean; pre-transpose
      (DROPPED) — gary decided the `F# - F`-style two-chords-in-one-bar walkdown
      is a human-post-review fix, not a subcommand concern. Left as a human
      find-and-fix after conversion.
@@ -462,13 +462,13 @@ the real *Better Together* tab end to end:
 
 ```
 raw tab  --clean_tab.py-->  cleaned
-       --ggt chopro --key C --capo 5>  shape-key chopro
-       --ggt transpose --to-key F>     native-key chopro   <- BandHelper-ready
+       --ggt cpro --key C --capo 5>  shape-key cpro
+       --ggt transpose --to-key F>     native-key cpro   <- BandHelper-ready
 ```
 
 ### 13.1 Delivered
 
-- `internal/music` — `TransposeSymbol` (one chord), `TransposeChoproText`
+- `internal/music` — `TransposeSymbol` (one chord), `TransposeCProText`
    (the file: bracket chords + `{key: V}`, everything else untouched),
    `KeyOf`, `SemitonesTo`, and a `Style` (auto/sharps/flats).  The chromatic
    math and accidental spelling are `brettbuddin/musictheory`; the chord-symbol
@@ -484,7 +484,7 @@ raw tab  --clean_tab.py-->  cleaned
 
 ### 13.2 Verification on the real file
 
-*Better Together* comes out shape-key **C** over **capo 5**; chopro
+*Better Together* comes out shape-key **C** over **capo 5**; cpro
 extracts `[C] [G] [Dm]` + slashes `[C/E] [C/B] [Am/G] [Dm/F]`.  `--to-key F`
 gives: `C→F`, `G→C`, `Dm→Gm`, `F→…` (see 13.3),
 `{key: F}`, `{capo: 5}` and the `(Capo 5)` cue kept.

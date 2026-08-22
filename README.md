@@ -1,26 +1,26 @@
 # ggt — Gary's Guitar Tool
 
 A CLI tool for working with guitar chord charts and BandHelper
-`.chopro` files.
+`.cpro` files.
 
 ## Subcommands
 
-### `ggt chopro`
+### `ggt cpro`
 
 Convert a tab chart (chord lines above lyric lines) to inline
 ChordPro format with a BandHelper `{key: value}` header.
 
 ```bash
-ggt chopro song.txt
+ggt cpro song.txt
 
 # pipe output to a file
-ggt chopro song.txt > song.chopro
+ggt cpro song.txt > song.cpro
 
 # with song metadata
-ggt chopro song.txt --title "Song Title" --key G --capo 2
+ggt cpro song.txt --title "Song Title" --key G --capo 2
 
 # write to file directly (quiet when -o is set)
-ggt chopro song.txt -o song.chopro
+ggt cpro song.txt -o song.cpro
 ```
 
 #### Flags
@@ -90,7 +90,7 @@ becomes
 ```bash
 make build                # -> bin/ggt
 make test                 # go test ./...
-ggt chopro chart.txt      # build + run
+ggt cpro chart.txt      # build + run
 ```
 
 ## Copyright
