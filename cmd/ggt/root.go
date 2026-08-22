@@ -26,5 +26,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+		rootCmd.AddCommand(newTransposeCmd())
 	rootCmd.AddCommand(newChoproCmd())
 }
