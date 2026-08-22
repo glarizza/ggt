@@ -10,9 +10,16 @@ reformatter and is being expanded into a multi-subcommand tool.
 
 ## Commit Message Format
 
-All commits MUST follow this structure:
+Every commit MUST begin with a **one-line conventional-commit title**
+(`type: imperative summary`, e.g. `feat: add version stamping to make
+build`). The title is the *first* line, stands alone, and is a hard
+rule: it is what `git log --oneline` shows and the only thing most
+people ever read, so **no commit ships without one.** After a blank line
+comes the structured PROBLEM/SOLUTION/OUTCOME body:
 
 ```
+<one-line title, e.g. "feat: stamp make build with version + commit">
+
 PROBLEM:
 <One or two sentences describing the actual problem being solved.
 Not "refactored things" — the concrete issue that motivated this change.
@@ -33,8 +40,10 @@ reconstruct from OUTCOME alone.>
 ### Example
 
 ```
+feat: add a {key: value} header block to the formatter
+
 PROBLEM:
-The cpro formatter had no way to produce a BandHelper `{key: value}`
+The formatter had no way to produce a BandHelper `{key: value}`
 header block. All output was bare chord+lyric lines, making the
 resulting .cpro files incomplete.
 
