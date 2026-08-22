@@ -1,0 +1,32 @@
+# ggt go-releaser config (v2).  Produces release binaries, stamped the same
+# way make build-stamp stamps them, reading the version from VERSION.
+
+version: 2
+
+# Version is read from the VERSION file at the repo root (git tag overrides it
+# when releasing from a tag).
+project:
+    name: ggt
+
+builds:
+   - id: ggt
+    ignore:
+       - goos: windows
+         goarch: "386"
+    env:
+       - CGO_ENABLED=0
+    main: ./cmd/ggt
+    binary: ggt
+    ldflags:
+       - -s -w
+       - "-X ggt/internal/version.Version={{ .Version }}"
+       - "-X ggt/internal/version.GitCommit={{ .ShortCommit }}"
+       - "-X ggt/internal/version.BuildDate={{ .Date }}"
+
+archives:
+   - id: default
+     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+     format: tar.gz
+
+changelog:
+    enable: true

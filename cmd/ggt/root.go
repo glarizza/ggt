@@ -8,7 +8,12 @@
 package main
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
+	"os"
+
+	cobra "github.com/spf13/cobra"
+
+	"ggt/internal/version"
 )
 
 // rootCmd is the top-level `ggt` command.
@@ -17,15 +22,41 @@ var rootCmd = &cobra.Command{
 	Use:   "ggt",
 	Short: "Gary's Guitar Tool",
 	Long: "ggt — Gary's Guitar Tool\n\n" +
-			"A multi-subcommand CLI for working with guitar chord charts and\n" +
-			"BandHelper .chopro files.\n\n" +
-			"Available subcommands:\n" +
-			"  chopro   Convert a tab chart to .chopro format",
+		"A multi-subcommand CLI for working with guitar chord charts and\n" +
+		"BandHelper .chopro files.\n\n" +
+		"Available subcommands:\n" +
+		"  chopro   Convert a tab chart to .chopro format",
 	SilenceUsage:  false,
 	SilenceErrors: false,
 }
 
+// showShort drives the -v / --short one-line report.
+var showShort bool
+
+// exitFn is the process-exit hook, overridable in tests so the
+// -v / --short reporting can be asserted without a real os.Exit.
+var exitFn = os.Exit
+
 func init() {
-		rootCmd.AddCommand(newTransposeCmd())
+	// -v / --short: our own one-line report; also inherited, handled before
+	// any subcommand runs.
+	rootCmd.PersistentFlags().BoolVarP(
+		&showShort, "version", "v", false, "print the one-line version and exit")
+
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if showShort {
+			out := cmd.OutOrStdout()
+			fmt.Fprintln(out, version.Short())
+			exitFn(0)
+		}
+		return nil
+	}
+
+	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	}
+
+	rootCmd.AddCommand(newTransposeCmd())
 	rootCmd.AddCommand(newChoproCmd())
+	rootCmd.AddCommand(newVersionCmd())
 }
