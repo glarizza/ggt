@@ -44,21 +44,41 @@ type word struct {
 	end   int
 }
 
+// tokenizeWithColumns splits a line into whitespace-delimited tokens while
+// treating a top-level (...) or [...] group — even with inner spaces — as a
+// single token. That keeps a hard-to-parse chord like "(F# - F)" intact
+// instead of fragmenting it into "(F#", "-", "F)" pieces.
 func tokenizeWithColumns(line string) []token {
 	var out []token
 	inTok := false
+	depth := 0
 	start := 0
 	for i, r := range line {
-		if r == ' ' || r == '\t' {
-			if inTok {
+		switch r {
+		case '(', '[':
+			depth++
+			if !inTok {
+				start = i
+				inTok = true
+			}
+		case ')', ']':
+			if depth > 0 {
+				depth--
+			}
+			if depth == 0 && inTok {
+				out = append(out, token{line[start : i+1], start})
+				inTok = false
+			}
+		case ' ', '\t':
+			if depth == 0 && inTok {
 				out = append(out, token{line[start:i], start})
 				inTok = false
 			}
-			continue
-		}
-		if !inTok {
-			start = i
-			inTok = true
+		default:
+			if !inTok {
+				start = i
+				inTok = true
+			}
 		}
 	}
 	if inTok {
@@ -84,6 +104,15 @@ func renderToken(t token) string {
 	if IsAnnotationToken(t.text) {
 		return t.text // e.g. "x2", "|" — pass through as literal text
 	}
+	// A chord symbol we do not model, e.g. a "(F# - F)" slide/grab: we LEAVE IT
+	// ALONE for the human — emit it verbatim, un-bracketed and un-transposed,
+	// so it "sticks out" and signals a fix is needed, instead of being silently
+	// removed (which would hide the fact that a chord lived here). Being
+	// un-bracketed also means the de-capo transposer leaves its spelling alone
+	// — we convert, we do not add or subtract musical content.
+	if isSkippable(t.text) {
+		return string(t.text)
+	}
 	return "[" + stripParens(t.text) + "]"
 }
 
@@ -97,13 +126,13 @@ func targetWordIndex(chordCol int, words []word) (idx int, ok bool) {
 	for i, w := range words {
 		if w.start <= chordCol && chordCol < w.end {
 			return i, true
-			}
+		}
 	}
 	// in whitespace: attach to the next word to the right
 	for i, w := range words {
 		if w.start >= chordCol {
 			return i, true
-			}
+		}
 	}
 	// past the end of the line: attach to the last word
 	return len(words) - 1, true
@@ -117,16 +146,29 @@ func PlaceChords(chordLine, lyricLine string) string {
 	words := wordsWithColumns(lyricLine)
 
 	if len(words) == 0 {
-		parts := make([]string, len(tokens))
-		for i, t := range tokens {
-			parts[i] = renderToken(t)
+		// Standalone chord line: leave skippable symbols in place (renderToken
+		// emits them verbatim); drop only bare connectors.
+		var parts []string
+		for _, t := range tokens {
+			if isConnector(t.text) {
+				continue
+			}
+			parts = append(parts, renderToken(t))
 		}
 		return strings.Join(parts, " ")
 	}
 
-	// wordIndex -> ordered list of tokens landing on that word
+	// wordIndex -> ordered list of tokens landing on that word. Skippable
+	// chord symbols (e.g. a "(F# - F)" slide) are LEFT ALONE: they are placed
+	// like any other chord and rendered verbatim, so a single un-parseable
+	// symbol no longer strips the valid chords off the lyric, and the symbol
+	// itself survives for a human to fix. Bare separators ("-", "+") that
+	// carry no chord are the only tokens dropped here.
 	stacks := make(map[int][]token)
 	for _, t := range tokens {
+		if isConnector(t.text) {
+			continue
+		}
 		idx, ok := targetWordIndex(t.col, words)
 		if !ok {
 			continue

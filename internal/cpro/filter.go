@@ -111,18 +111,34 @@ func emitHeader(o HeaderOpts) string {
 // want a reminder that a personal capo transpose is needed, add it back by
 // hand in BandHelper at import time.)
 
-// wrapStandaloneChordLine brackets every real chord on a chord line
-// with no lyric beneath it. Annotation tokens (x2, |, N.C.) pass
-// through unchanged.
+// wrapStandaloneChordLine brackets every real chord on a chord line that has
+// no lyric beneath it, preserving the original inter-chord spacing. Bare
+// connectors are skipped, and skippable chord symbols are LEFT ALONE (rendered
+// verbatim), matching PlaceChords — a hard-to-parse chord on an otherwise-clean
+// row is preserved for a human to fix, not dropped.
 func wrapStandaloneChordLine(line string) string {
-	return tokenRe.ReplaceAllStringFunc(line, func(tok string) string {
-		upper := strings.ToUpper(tok)
-		if upper == "N.C." || upper == "(N.C.)" {
-			return "(N.C.)"
+	tokens := tokenizeWithColumns(line)
+	if len(tokens) == 0 {
+		return line
+	}
+	var b strings.Builder
+	prev := 0
+	for _, t := range tokens {
+		// Preserve the original gap from the previous emitted position.
+		if t.col > prev {
+			b.WriteString(line[prev:t.col])
 		}
-		if IsAnnotationToken(tok) {
-			return tok
+		// Skip bare connectors (they carry no chord); skippable symbols fall
+		// through and are rendered verbatim, left alone for a human to fix.
+		if isConnector(t.text) {
+			prev = t.col + len(t.text)
+			continue
 		}
-		return "[" + stripParens(tok) + "]"
-	})
+		b.WriteString(renderToken(t))
+		prev = t.col + len(t.text)
+	}
+	if prev < len(line) {
+		b.WriteString(line[prev:])
+	}
+	return b.String()
 }

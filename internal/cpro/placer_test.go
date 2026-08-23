@@ -1,6 +1,9 @@
 package cpro
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestSingleChordAtWordStart(t *testing.T) {
 	got := PlaceChords("G", "hello there")
@@ -104,5 +107,50 @@ func TestParenChordStrippedStandalone(t *testing.T) {
 	// Empty lyric → falls through to the standalone path
 	if got != "[Em]" {
 		t.Errorf("got %q, want %q", got, "[Em]")
+	}
+}
+
+// TestPlaceChordsSkipsUnparseableChordRow is the crux of the "don't drop the
+// whole line for one bad symbol" fix: F and G are placed, and the un-parseable
+// (F# - F) is skipped rather than polluting the lyric.
+// TestPlaceChordsLeavesUnparseableChordRowAlone is the crux of "convert, don't
+// add/subtract musical content": F and G are placed, and the un-parseable
+// "(F# - F)" slide is LEFT ALONE -- emitted verbatim so a human can fix it --
+// rather than being silently deleted, which would hide that a chord lived there.
+func TestPlaceChordsLeavesUnparseableChordRowAlone(t *testing.T) {
+	chords := "F                    G                                (F# - F)"
+	lyric := "  Mmmm, it's always better when we're together"
+	got := PlaceChords(chords, lyric)
+
+	// The two valid chords ARE placed, so the row is kept, not dropped.
+	if !strings.Contains(got, "[F]") {
+		t.Errorf("expected F to be placed, got %q", got)
+	}
+	if !strings.Contains(got, "[G]") {
+		t.Errorf("expected G to be placed, got %q", got)
+	}
+	// The un-parseable symbol is LEFT ALONE: present, verbatim, un-bracketed,
+	// and un-transposed (its spelling is not guessed at).
+	if !strings.Contains(got, "(F# - F)") {
+		t.Errorf("(F# - F) must be left in place verbatim, got %q", got)
+	}
+	if strings.Contains(got, "[F# - F]") {
+		t.Errorf("the un-parseable symbol must not be bracketed as a chord, got %q", got)
+	}
+	// The lyric text still surrounds it (the leading fragment at least).
+	if !strings.Contains(got, "Mmmm, it's always") {
+		t.Errorf("leading lyric fragmented, got %q", got)
+	}
+}
+
+// TestPlaceChordsConnectorNotBracketed checks a bare connector is skipped, not
+// bracketed.
+func TestPlaceChordsConnectorNotBracketed(t *testing.T) {
+	got := PlaceChords("F - G", "one two three")
+	if strings.Contains(got, "[-]") || strings.Contains(got, "[ - ]") {
+		t.Errorf("connector must not be bracketed, got %q", got)
+	}
+	if !strings.Contains(got, "[F]") || !strings.Contains(got, "[G]") {
+		t.Errorf("both chords should be placed, got %q", got)
 	}
 }

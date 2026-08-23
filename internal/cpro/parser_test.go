@@ -61,3 +61,56 @@ func TestClassifyLineKinds(t *testing.T) {
 		}
 	}
 }
+
+// TestSkippableSymbolClassification locks in the "skip the un-parseable chord
+// symbol, keep the rest" behaviour: wrapped symbols like (F# - F) are
+// tolerated on a chord row, while clean chords and bare chords are not
+// mis-skipped.
+func TestSkippableSymbolClassification(t *testing.T) {
+	shouldSkip := []string{"(F# - F)", "(Em + C)", "(C/B  G)", "[F - G]"}
+	for _, tok := range shouldSkip {
+		if !isSkippable(tok) {
+			t.Errorf("expected %q to be skippable", tok)
+		}
+		if IsChordToken(tok) {
+			t.Errorf("expected %q NOT to parse as a clean chord", tok)
+		}
+	}
+
+	shouldNotSkip := []string{"(Gm)", "(C)", "(Cadd9)", "G", "F#m", "F#m7", "D/F#"}
+	for _, tok := range shouldNotSkip {
+		if isSkippable(tok) {
+			t.Errorf("expected %q NOT to be skippable (clean chord)", tok)
+		}
+	}
+
+	// A row of clean chords plus one un-parseable symbol is still a chord row.
+	if !IsChordLine("F                   G                              (F# - F)") {
+		t.Errorf("expected a chord row with one un-parseable symbol to be a chord line")
+	}
+	// Prose is still not a chord row.
+	if IsChordLine("this is a plain lyric line") {
+		t.Errorf("prose should not be a chord line")
+	}
+	// A bare chord with a connector between (no parens) is tolerated.
+	if !IsChordLine("F - G") {
+		t.Errorf("bare chord row with a connector should be a chord line")
+	}
+}
+
+func TestTokenizeGroupsParens(t *testing.T) {
+	toks := tokenizeWithColumns("F      G    (F# - F)")
+	got := make([]string, len(toks))
+	for i, t := range toks {
+		got[i] = t.text
+	}
+	want := []string{"F", "G", "(F# - F)"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("token %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
