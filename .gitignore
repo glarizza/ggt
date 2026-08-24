@@ -10,6 +10,12 @@
 # but never commit them to the repo
 /ignored/
 
+# Real UG pro_meta API responses and cleaned outputs used as test
+# fixtures (copyrighted lyrics; never committed).
+# All .txt in internal/ug/testdata/ are real or scrambled UG lyrics;
+# .gitkeep keeps the empty directory in the index.
+internal/ug/testdata/*.txt
+
 # Pipeline output — cleaned tabs and generated .cpro files for the
 # ggt-chart-pipeline skill. Copyrighted material; never committed.
 /output/

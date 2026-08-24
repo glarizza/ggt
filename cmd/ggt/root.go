@@ -25,7 +25,9 @@ var rootCmd = &cobra.Command{
 		"A multi-subcommand CLI for working with guitar chord charts and\n" +
 		"BandHelper .cpro files.\n\n" +
 		"Available subcommands:\n" +
-		"  cpro   Convert a tab chart to .cpro format",
+		"  cpro    Convert a tab chart to .cpro format\n" +
+		"  ug      Process UG Pro tab data (fetch, clean, analyse)\n" +
+		"  version Print the version and exit\n",
 	SilenceUsage:  false,
 	SilenceErrors: false,
 }
@@ -59,4 +61,5 @@ func init() {
 	rootCmd.AddCommand(newTransposeCmd())
 	rootCmd.AddCommand(newCProCmd())
 	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newUGCmd())
 }
