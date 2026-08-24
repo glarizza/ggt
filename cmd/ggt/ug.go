@@ -82,7 +82,7 @@ func newUGFetchCmd(shared *ugFlagSet) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 				// 1. Fetch the UG pro_meta JSON.
-			meta, err := ug.FetchUGMeta(args[0])
+			meta, err := ug.FetchTabByURL(args[0])
 			if err != nil {
 				return err
 				}

@@ -195,3 +195,61 @@ $ diff out.chopro ignored/ready_for_import/hurt.chopro
 | `cmd/ggt/ug.go`                   | New — 10 KB Cobra subcommand      |
 | `cmd/ggt/root.go`                 | Register `newUGCmd`           |
 | `ai-specs/20260823-ggt-trail-scripts.md` | Superseded by this doc |
+
+---
+
+## User-tab support (version-ID fallback)
+
+Design doc: `ggt-ug-v2-user-tabs.md`
+
+### Key finding
+
+UG user-submitted tabs (`-chords-N` URL, not `-official-N`) do **not**
+respond to `pro_meta?id=X` with the tab URL ID. But the HTML tab page
+embeds a JSON-escaped metadata block that contains
+`&quot;versions&quot;:[{&quot;id&quot;:NNNNN,...}]`.  The **first version ID**
+in that block is a valid `pro_meta` ID that returns HTTP 200 — identical
+structure to an official tab.
+
+### `ggt ug fetch` strategy
+
+1. **Direct `pro_meta`** with the tab URL ID (fast path — official tabs).
+2. **On 404**: fetch the HTML page, extract the first version ID, retry
+    `pro_meta` with that ID.
+3. **Despair**: no version record in HTML → descriptive error.
+
+### New files
+
+- `internal/ug/tab.go` — `FetchTabByURL`, `fetchUserTabFromHTML`,
+   `extractVersionID`, `fetchHTML`.
+- `internal/ug/meta.go` — `ErrNotFound` sentinel; `?id=N` in `ExtractTabID`.
+- `internal/ug/tab_test.go` — 3 tests (HTMLEscaped, PlainJSON, NotPresent).
+- `cmd/ggt/ug.go` — `runUGFetch` calls `FetchTabByURL` instead of
+    `FetchUGMeta`.
+
+### Live test
+
+```
+$ ggt ug fetch '.../queen/we-are-the-champions-chords-213415' --facts
+Song:           We Are The Champions
+Artist:         Queen
+Tuning:         E A D G B E
+Capo:           0            (HTML shows capo 3 — UG data quirk)
+Tonal candidate: Gm  ✓ (C minor scale: Cm/Gm/Eb/Ab/F/Bb/Dm/D/C)
+Strumming BPM:  95 bpm
+Duration:        2:56
+```
+
+### User-tab vs official-tab chord markup
+
+| Official (pro tab)        | User tab (community)      |
+|---------------------------|---------------------------|
+| `[ch app="x032010"]Am[/ch]`| `[ch]Am[/ch]`   |
+| `[/ch]` closes chord      | `[/ch]` closes chord ✓   |
+| `[syllable ...]word[/syllable]` | user tabs: none    |
+| `[tab]...[/tab]` blocks    | `[tab]...[/tab]` blocks   |
+
+The single regex `reChOpen = /\[\s*ch\s*[^]]*/` handles both — `[^]]*` matches
+zero-or-more non-`]` chars between `[ch` and `]`, covering both `[ch]` (no space, no attrs)
+and `[ch app="X03210"]` (attrs with spaces). Verified by `TestClean_UserTabChordFormat`.
+

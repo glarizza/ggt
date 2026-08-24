@@ -92,7 +92,7 @@ var fragmentPatterns = []*regexp.Regexp{
 // Regex patterns (compiled once at package init).
 var (
 	// [ch app="XXXXXX"] — open chord tag (with or without a space after [ch)
-	reChOpen = regexp.MustCompile(`\[\s*ch\s+[^\]]*\]`)
+	reChOpen = regexp.MustCompile(`\[\s*ch\s*[^]]*]`)
 	// [/ch] — close chord tag
 	reChClose = regexp.MustCompile(`\[\s*/\s*ch\s*\]`)
 	// [tab] — open tab-lane marker

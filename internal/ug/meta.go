@@ -8,6 +8,7 @@ package ug
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,6 +16,12 @@ import (
 	"strconv"
 	"strings"
 )
+
+// ErrNotFound is the sentinel error returned by FetchUGMeta when the UG
+// pro_meta API returns HTTP 404. Callers (e.g. FetchTabByURL in tab.go)
+// check errors.Is(err, ErrNotFound) to decide whether to fall back to
+// HTML scraping for the version ID.
+var ErrNotFound = errors.New("ug: tab not found in pro_meta (HTTP 404)")
 
 // UGMeta is the typed representation of UG's pro_meta API response.
 // Fields are populated after Unmarshal, and can be accessed directly.
@@ -105,7 +112,7 @@ func FetchUGMeta(tabURL string) (*UGMeta, error) {
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("tab id %d not found in pro_meta (HTTP 404 — may be a user tab, not official)", id)
+		return nil, fmt.Errorf("%w: tab id %d may be a user tab, not official", ErrNotFound, id)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d from %s: %s", resp.StatusCode, apiURL, strings.TrimSpace(string(body)))
@@ -133,12 +140,17 @@ func ExtractTabID(tabURL string) (int, error) {
 		return 0, err
 	}
 
-	// Prefer the ?tab=X query parameter if present.
+	// Prefer the ?pro=X / ?tab=X query parameter if present.
+	if proQuery := u.Query().Get("pro"); proQuery != "" {
+		return strconv.Atoi(proQuery)
+	}
 	if tabQuery := u.Query().Get("tab"); tabQuery != "" {
 		return strconv.Atoi(tabQuery)
 	}
-	if proQuery := u.Query().Get("pro"); proQuery != "" {
-		return strconv.Atoi(proQuery)
+	// UG also accepts ?id=N (used when extracting a version ID
+	// for the FetchTabByURL fallback).
+	if idQuery := u.Query().Get("id"); idQuery != "" {
+		return strconv.Atoi(idQuery)
 	}
 
 	// Otherwise: extract trailing digits from the last path segment.
