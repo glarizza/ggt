@@ -18,7 +18,8 @@ URL: `https://tabs.ultimate-guitar.com/tab/sarah-mclachlan/building-a-mystery-ch
 The user tab (`696128`) and the UG Pro tab (`3871616`) are DIFFERENT tabs by DIFFERENT
 authors. `ggt u`, when asked for tab `696128`, returns tab `3871616`.
 
-This violates Gary's core principle: "if I give you THIS URL, I want THIS tab."
+This violates a core principle of the tool: "if this URL is requested, this tab
+is returned."
 
 ---
 

@@ -101,7 +101,7 @@ not deeply familiar with the chart. The whole row still exists.
 ## 5. The misstep we walked back
 
 The first cut implemented "skip" as **delete** — the symbol vanished from the
-output. Gary caught it: *"the `(F - F#)` was not skipped, it was removed. It
+output. This was caught on review: *"the `(F - F#)` was not skipped, it was removed. It
 DID have a function to the song."* "Skip it" meant **"leave it alone for the
 human to fix,"** not "remove it." This is why the design goal is *conversion,
 not addition or subtraction of the tab's musical content*: when the meaning is

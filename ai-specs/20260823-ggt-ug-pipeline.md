@@ -12,7 +12,7 @@ This caused 3 concrete problems:
 - No post-condition check — a missed strip was invisible.
 - No type safety between stages.
 
-Gary's instruction: "if it's the same 3 steps every time, in the same order,
+The user's instruction: "if it's the same 3 steps every time, in the same order,
 that set is one workflow, not 3 scripts. Don't let the implementation steps
 dictate the subcommand API; let the user's intent drive the subcommands."
 

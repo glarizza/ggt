@@ -314,11 +314,6 @@ Fixed via TDD. Regression added in `internal/ug/innerquote_test.go`
 TestCapoInstruction_BareCapo3). Patch bumped 0.5.0 -> 0.5.1. Full `make test`
 green; `gofmt` clean; `go vet ./...` clean.
 
-Note: gpg/ssh signing could not run (1Password `op-ssh-sign` "failed to fill
-whole buffer" — an app-unlock issue on the host, not a code issue). This repo's
-recent history carries no signatures, so the commit is consistent with it; a
-signed version can be produced once 1Password is unlocked.
-
 ### Song task resumed with the fixed `ggt` (0.5.1)
 
 `ggt ug fetch '.../some-fantastic-chords-1219927'` now returns the FULL 5493-char

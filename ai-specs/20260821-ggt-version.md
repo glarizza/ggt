@@ -166,7 +166,7 @@ mistake a local build for a release.
 
 Three Makefile targets rewrite `VERSION` in place (the bump itself does **not**
 stamp or commit — the developer commits the new `VERSION` manually so the
-change is reviewable, and stamps on the next build).  These are Gary’s
+change is reviewable, and stamps on the next build).  These are The user’s
 proven recipes from other projects; the only project-specific bits are the
 `VERSION` filename and the `cut -d.` splitting, which are identical here:
 
@@ -294,7 +294,7 @@ All resolved in the user’s review pass; kept here for the record:
 - `ggt` is **Makefile-driven** for build/stamp/bump and **go-releaser**-driven
    for release.
 - Three version-bump targets — `version-patch` / `version-minor` /
-    `version-major` — from Gary’s recipe (detailed in §2.6).  [DRAFTED,
+    `version-major` — from The user’s recipe (detailed in §2.6).  [DRAFTED,
    not yet transcribed into the live Makefile.]
 
 ---

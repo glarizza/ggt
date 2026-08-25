@@ -10,7 +10,7 @@ import (
 // non-chords untouched, and accidental-style selection.
 //
 // Every "expected" below was hand-computed on the chromatic circle and
-// checked by ear — gary's "have it work" criterion.
+// checked by ear — the user's "have it work" criterion.
 func TestTransposeSymbol(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -56,7 +56,7 @@ func TestTransposeSymbol(t *testing.T) {
 		{"section header word", "Verse 1", -3, StyleAuto, "Verse 1", false},
 		{"empty", "", -3, StyleAuto, "", false},
 
-		// the "preserve degree" cases gary called out
+		// the "preserve degree" cases the user called out
 		{"Dm7b5 untouched at 0", "Dm7b5", 0, StyleAuto, "Dm7b5", true},
 		{"Cadd9 to Aadd9 down 3", "Cadd9", -3, StyleAuto, "Aadd9", true},
 	}

@@ -11,7 +11,7 @@ reversed: a default build should be *traceable*, not anonymous.
 
 ## 1. Problem statement
 
-Gary's use case, in his words:
+The user's use case, in their own words:
 
 > if we do local builds with `make build` I STILL want to know what semantic
 > version this local build is based on … a local build where VERSION is 0.1.0
@@ -34,7 +34,7 @@ Two problems:
    version era or commit it is, defeating the "does this binary have the new
    feature?" check.
 2. **No versioning discipline.** The version-bump targets exist but nothing
-   says *when* to bump. Gary wants: **minor per new feature, patch per fix**,
+   says *when* to bump. The user wants: **minor per new feature, patch per fix**,
    while pre-1.0.0 (minor is effectively "free" here). `--remove-capo`
    (commit `57f6076`) is a new feature that did not bump the version; VERSION
    is still `0.1.0`.
@@ -62,7 +62,7 @@ So:
    baseline AND the exact commit, so you can see whether it postdates a
    feature. The short commit is the strongest "is this current?" tell, and it
    was **already computed** (`GITCOMMIT` at line 9) — wiring it in is a
-   one-word change to the `build` recipe, not the "bigger lift" Gary suspected.
+   one-word change to the `build` recipe, not the "bigger lift" The user suspected.
 - We can retire the now-redundant `build-stamp` target (or keep it as an
    alias). Recommendation: **fold it into `build`** — one fewer target to
    remember.
@@ -107,7 +107,7 @@ ggt 0.2.0
 
 ### 2.3 Semver discipline (pre-1.0.0)
 
-Record the convention (Gary's words: "a LITTLE BIT"):
+Record the convention (The user's words: "a LITTLE BIT"):
 
 - **New feature → bump minor** (…0.1.0 → 0.2.0 → 0.3.0…).  Cheap and safe
    while pre-1.0.0.

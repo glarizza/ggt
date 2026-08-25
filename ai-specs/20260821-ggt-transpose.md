@@ -1,7 +1,7 @@
 # ggt transpose — design spike
 
 **Status:** IMPLEMENTED. `internal/music` + `cmd/ggt/transpose.go` are written, table-driven tested, and run the real Better Together tab end to end.  See §13.
-**Author intent:** collect gary's needs, lock the UX, and lay out the key-math
+**Author intent:** collect the user's needs, lock the UX, and lay out the key-math
 mechanics so the AI never has to guess the theory. This doc is the authoritative
 spec for the `transpose` subcommand; when approved it becomes the contract the
 implementation must satisfy.
@@ -14,7 +14,7 @@ ggt can clean a downloaded tab and place its chords into BandHelper `.cpro`
 structure, but it cannot do the **music-theory** step BandHelper actually needs:
 the **native-key transposition**.
 
-gary plays **capo shapes** — easy open shapes plus a capo instead of barre
+The user plays **capo shapes** — easy open shapes plus a capo instead of barre
 chords: easier, a different voice, and it keeps chords movable so he can shift
 a song between keys himself. Every tab he encounters is in the
 **playing/shape key** — the chords as they *look on the fretboard* with the
@@ -26,7 +26,7 @@ their easy shapes back. To import a song at all, the chart must carry the
 native key.
 
 Today that math is done on Copilot / Claude by hand, per song — the exact
-"cloud AI decides it won't help" behaviour gary is moving away from by running
+"cloud AI decides it won't help" behaviour the user is moving away from by running
 a local model. We want `ggt transpose` to do it, deterministically, with
 **zero AI in the loop**.
 
@@ -39,9 +39,9 @@ everything before and after it.
 
 - **Native key = shape key shifted by the capo.** A tab says "E-shapes at capo
     3" meaning the fingers play the *shape* of E with the capo at fret 3, and
-   the sound is up 3 semitones from E. gary wants the **original / published**
+   the sound is up 3 semitones from E. the user wants the **original / published**
    key, which is N semitones *lower* — shift **down** N.
-- **Personal transpose is not stored in the file.** gary sets it per-player,
+- **Personal transpose is not stored in the file.** the user sets it per-player,
     by hand, in BH's UI.
 - **Transposition is a uniform chromatic shift applied to every chord:**
       - *Preserve chord quality exactly.* `m7b5` stays `m7b5`, `sus4` stays
@@ -55,7 +55,7 @@ everything before and after it.
     source of truth for the *key* is the published key and its chord-function
     profile, not the tab's own "Capo: N" label. That policing is the AI /
     orchestrator's job — **not** transpose's.
-- **Direction.** gary's 80% case is `--down N`: "these chords sound at capo N,
+- **Direction.** the user's 80% case is `--down N`: "these chords sound at capo N,
     so the original key is N semitones lower — shift everything down N." The AI
     reasons out magnitude and direction from the capo; the subcommand just
     executes the shift it is told to run.
@@ -64,7 +64,7 @@ everything before and after it.
 
 ## 3. User interaction (designed first)
 
-### 3.1 What gary needs, in words
+### 3.1 What the user needs, in words
 
 > "I got a tab in E-shapes at capo 3. Give me that song in its native key so I
 >  can hand it to BandHelper — and don't make me do the music math."
@@ -78,10 +78,10 @@ Two decisions the UI must make easy:
 
 `ggt transpose` takes exactly one of two forms — **mutually exclusive**:
 
-| Flag | Meaning | When gary / the AI uses it |
+| Flag | Meaning | When the user / the AI uses it |
 |---|---|---|
-| **`--up N`** / **`--down N`** (-N) | Shift every chord N semitones up or down. `--down N` = `--up (12−N)`.  N is 0–11. | **The 80% case.** The AI reads "capo N" off the cleaned tab, decides "down N gives the original key", and runs `--down N`. gary also uses this for one-off re-keyings ("a bit too high for my voice — down 2"). |
-| **`--to-key K`** (-k) | Transpose so the output tonic lands on key K. ggt computes the chromatic delta from the current `{key}` header to K. | gary knows the published / target key and doesn't want to subtract. |
+| **`--up N`** / **`--down N`** (-N) | Shift every chord N semitones up or down. `--down N` = `--up (12−N)`.  N is 0–11. | **The 80% case.** The AI reads "capo N" off the cleaned tab, decides "down N gives the original key", and runs `--down N`. the user also uses this for one-off re-keyings ("a bit too high for my voice — down 2"). |
+| **`--to-key K`** (-k) | Transpose so the output tonic lands on key K. ggt computes the chromatic delta from the current `{key}` header to K. | the user knows the published / target key and doesn't want to subtract. |
 
 **No `--capo` flag, and no `--key` override flag.** The capo value is not
 something the tool decodes. When the AI sees "capo N" in the tab it has
@@ -112,7 +112,7 @@ itself vs a semitone offset) from ever colliding on one command line. The tool
         makes musical sense.
 5. **On disagreement** — the found key diverges from the output's tonic —
      re-evaluate the capo and re-run; otherwise surface both numbers plus the
-     source list to gary to decide.
+     source list to the user to decide.
 
 `ggt transpose` itself is a deterministic, no-network, no-AI shift of every
 `[chord]` token by N semitones, with a side-effect on the `{key}` header.
@@ -195,17 +195,17 @@ For `{key: E}` + `{capo: 3}` transposed `--down 3` to the native / original key:
 - `[x2]`, `(N.C.)`, `[Verse]` — untouched.
 - Header: `{key: E}` → `{key: C}` (E down 3 = C, the native key).
       `{capo: 3}` retained as a human-readable record; ignored by BH.
-- No `{transpose}` field written. gary sets that by hand in BH.
+- No `{transpose}` field written. the user sets that by hand in BH.
 
-**BandHelper contract (gary's confirmation):**
+**BandHelper contract (the user's confirmation):**
 - BH **reads `key`** and stores it — that's the native/original key we set.
 - BH **ignores `capo` and `transpose`** — `{capo}` is present as a human
      record only; BH does not act on it.
-- gary sets his **personal transposition** by hand in BH's UI, per player.
+- the user sets their **personal transposition** by hand in BH's UI, per player.
 - Import is a **store, not a mutation** — it takes `key` as written and
      does not recalculate.
 
-So the transposed output gary hands to BH is literally: **all chords shifted to
+So the transposed output the user hands to BH is literally: **all chords shifted to
 the native key, plus `{key: native}` and `{capo: N}` as a human record.**
 
 ---
@@ -233,7 +233,7 @@ clean token is the right split (Q7). Transpose never has to parse a paren form
 
 ### 7.1 New package `internal/music` (hand-rolled, stdlib-only)
 
-The chord vocabulary is tiny; gary explicitly wants the logic *encoded*, not
+The chord vocabulary is tiny; the user explicitly wants the logic *encoded*, not
 left for the AI to reason per song. A dependency-free package covers it:
 
 ```go
@@ -303,7 +303,7 @@ runtime judgment, zero new dependency — fits the std-lib-only spirit of the
 existing binary. The `ParseChord` / `Transpose` seam isolates the only logic a
 future music-theory library would provide; a single import swap replaces it
 behind the same interface if a chord form we don't yet anticipate (microtonal
-; `:14` figured-bass slash, etc.) appears in a tab gary wants to run.
+; `:14` figured-bass slash, etc.) appears in a tab the user wants to run.
 
 ---
 
@@ -329,7 +329,7 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 | R1 | `--auto` emits "Gb" where a player writes "F#" | Known; v2 `--prefer F# Bb …` flag. Not a blocker. |
 | R2 | Quality split mis-reads an accidental (`D#m7` loses the sharp) | Mitigated: reuse `cpro`'s `chordTokenRe`; add vectors to the test for every sharp/flat-in-quality form |
 | R3 | First-chord direction error | Explicit vector test; `ggt transpose` prints a stderr warning when its first-chord root ≠ `--to-key` target |
-| R4 | BandHelper header semantics unknown | **Resolved by gary:** BH reads `key`, ignores `capo`/`transpose`; no `transpose` field written; gary sets personal transpose by hand |
+| R4 | BandHelper header semantics unknown | **Resolved by the user:** BH reads `key`, ignores `capo`/`transpose`; no `transpose` field written; the user sets personal transpose by hand |
 | R5 | `--to-key` with no `{key}` header | Clear error, not a silent default |
 | R6 | Borrowed chords "corrected" to diatonic | Structurally impossible: quality rides through; no substitute-lookup path |
 | R7 | `(F# - F)` walkdown misclassified by `cpro` *before* transpose | **Open (Q7).** Lean "fix in cpro first"; decoupled fix |
@@ -363,21 +363,21 @@ behind the same interface if a chord form we don't yet anticipate (microtonal
 
 ### Resolved
 
-- **Q1 — output model:** output stores **native-key chords**. gary confirmed.
+- **Q1 — output model:** output stores **native-key chords**. the user confirmed.
 - **Q2 — input:** post-cpro bracketed `.cpro`; no raw-tab input needed.
 - **Q3 — header fields BH consumes:** BH reads `{key}` only; `{capo}` kept as a
      human-readable record, ignored by BH; no `{transpose}` field written —
-     gary sets personal transpose by hand in BH's UI per player.
+     the user sets personal transpose by hand in BH's UI per player.
 - **Q4 — accidental style default:** `--auto` (inherit); `--prefer` deferred to
-        v2. gary approved the default.
+        v2. the user approved the default.
 - **Q5 — hand-roll vs library:** **decided — brettbuddin/musictheory.** See §12.
 - **Q6 — who owns `{key}`:** `ggt transpose` (it is the key-shift engine).
-- **Q8 — no `--capo` flag:** gary removed it. No capo-decoding in the subcommand.
+- **Q8 — no `--capo` flag:** the user removed it. No capo-decoding in the subcommand.
 
 ### Still open
 
 - **Q7 — `(F# - F)` walkdown:** fix in **cpro** (lean; pre-transpose
-     (DROPPED) — gary decided the `F# - F`-style two-chords-in-one-bar walkdown
+     (DROPPED) — the user decided the `F# - F`-style two-chords-in-one-bar walkdown
      is a human-post-review fix, not a subcommand concern. Left as a human
      find-and-fix after conversion.
 
@@ -493,12 +493,12 @@ gives: `C→F`, `G→C`, `Dm→Gm`, `F→…` (see 13.3),
 
 For an F-major output, `--auto` (sharps-when-ambiguous) renders F↕ as
 `[A#]`/`[Gm/A#]`; `--flats` renders `[Bb]`/`[Gm/Bb]`, the natural F-major
-spelling.  Per gary’s note, **BandHelper enforces the final #/–b
+spelling.  Per the user’s note, **BandHelper enforces the final #/–b
 spelling**, so a slightly-off enharmonic is correctable at import time.
-Two options, gary to choose:
+Two options, the user to choose:
 
 - **(A) Ship as-is.**  `--flats`/`--sharps` are explicit; auto = sharps-default.
      For *Better Together* just call with `--flats`.
 - **(B) Smarter auto.**  When `--to-key K` is used, auto picks
      `K`-major-key’s signature style (F major → flats → Bb).
-     ~15 lines.  Deferred unless gary wants it.
+     ~15 lines.  Deferred unless the user wants it.
