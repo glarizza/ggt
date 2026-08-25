@@ -304,3 +304,55 @@ Facts gathered while diagnosing — resume after the fix lands so we run it thro
 - Output target after fix: `ignored/ready_for_import/some-fantastic.chopro`.
    Only land once tempo (2+ sources) and duration (2+ sources or flagged "assumed")
    clear the skill's gate.
+
+---
+
+## RESOLUTION (2026-08-25, commit 51a2d3a, v0.5.1)
+
+Fixed via TDD. Regression added in `internal/ug/innerquote_test.go`
+(TestExtractContent_HTMLEscaped_InnerQuote, TestExtractFromHTML_InnerEscapedQuoteBody,
+TestCapoInstruction_BareCapo3). Patch bumped 0.5.0 -> 0.5.1. Full `make test`
+green; `gofmt` clean; `go vet ./...` clean.
+
+Note: gpg/ssh signing could not run (1Password `op-ssh-sign` "failed to fill
+whole buffer" — an app-unlock issue on the host, not a code issue). This repo's
+recent history carries no signatures, so the commit is consistent with it; a
+signed version can be produced once 1Password is unlocked.
+
+### Song task resumed with the fixed `ggt` (0.5.1)
+
+`ggt ug fetch '.../some-fantastic-chords-1219927'` now returns the FULL 5493-char
+chord body (was 135 chars). Converted via `ggt cpro --key Bb --capo 3 --remove-capo
+--tempo 150 --time 4/4 --duration 4:16` -> `ignored/ready_for_import/some-fantastic.chopro`.
+
+Cross-checks:
+- **key Bb** — 3 sources: Singing Carrots (Original Key Bb Major), ChordU
+  (Bb/C/Eb/F/Gm, Bb-diatonic), SongKeyFinder (A#/Bb Major). Also = G shapes +
+  capo 3. Solid.
+- **capo 3** — UG-authoritative (`meta.capo`), not cross-checked per capo-is-gospel.
+- **duration 4:16** — Spotify 4:16 + ilyrics 4:16 (DT 4:17, +/-1s). OK.
+- **time 4/4** — assumed (UG user-tab HTML has none); flagged.
+- **tempo 150 vs 163** — DISAGREEMENT (flagged, user to confirm): ChordU 150
+  (Bb base chart); Dave Tompkins Music DB 163. Chosen 150.
+
+### Two more ggt observations found while converting this song (separate tickets)
+
+1. **Stale "Capo N" line under --remove-capo.** `stripCapoInstruction` is
+   start-anchored (`^capo...`), so a "Capo 3" instruction that is NOT the first
+   line (this tab has a 4-line prose intro before it) survives into the chopro,
+   directly contradicting the no-capo header. Manual sed strip of the line was
+   needed for import. Candidate fix: strip "Capo N" as a whole-line regex
+    anywhere in the body, or only when --remove-capo is set. (Left the 4-line
+    author intro note in place as faithful content.)
+
+2. **Enharmonic spelling of transposed chords.** Cadd9 +3 -> `D#add9`, but in a
+   Bb-key chart the idiomatic spelling is `Ebadd9` (flat key). ggt transposition
+   is sharp-biased. Candidate enhancement: key-aware enharmonic spelling, or a
+   `--flat-preferred` flag. Left as-is for now; flagged to the user.
+
+### Personal-transpose reminder (BandHelper UI step)
+
+This song was converted with --capo 3 --remove-capo, so set a personal
+transcription of -3 in BandHelper (or add a per-song "Personal transpose: -3"
+custom field / readiness substate) so the Bb-native chart renders the capo-3
+shapes on screen.
