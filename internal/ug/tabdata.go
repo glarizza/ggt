@@ -18,16 +18,17 @@ import (
 // returns a fully-populated *TabData.
 //
 // Strategy (two distinct UG pathways):
-//   1. PRO tab (official / behind paywall): pro_meta API returns 200.
-//       Source = "pro_meta". All fields populated including Tempo,
-//       StrumBPM, DurationMS, Tracks.
-//   2. User tab (community, not in pro_meta): pro_meta returns 404.
-//       Fall through to HTML extraction. Source = "user-tab-html".
-//       Tempo/StrumBPM/DurationMS/Tracks are zero/nil — cross-check.
+//  1. PRO tab (official / behind paywall): pro_meta API returns 200.
+//     Source = "pro_meta". All fields populated including Tempo,
+//     StrumBPM, DurationMS, Tracks.
+//  2. User tab (community, not in pro_meta): pro_meta returns 404.
+//     Fall through to HTML extraction. Source = "user-tab-html".
+//     Tempo/StrumBPM/DurationMS/Tracks are zero/nil — cross-check.
 //
 // The URL slug distinguishes the two:
-//    ...-official-NNNNNN  → PRO tab  (pro_meta fast path)
-//    ...-chords-NNNNM     → user tab (HTML extraction)
+//
+//	...-official-NNNNNN  → PRO tab  (pro_meta fast path)
+//	...-chords-NNNNM     → user tab (HTML extraction)
 //
 // No "try pro_meta then version-ID fallback" logic — that approach was
 // the root cause of the capo mismatch bug (versions[0].id grabbed the
@@ -78,22 +79,22 @@ func isNotFound(err error) bool {
 // rather than placeholder values.
 type TabData struct {
 	// Common to both paths.
-	TabID  int
+	TabID   int
 	Name    string // song title
-	Artist string // performer name
-	Tuning string // string tuning (e.g. "E A D G B E")
+	Artist  string // performer name
+	Tuning  string // string tuning (e.g. "E A D G B E")
 	Capo    int    // capo fret (0 = no capo)
 	Content string // UG-markup tab content; needs Clean()
 
 	// HTML-only fields (user-tab path).
-	Username string // UG user who submitted the tab
-	Votes       int    // user-tab vote count
+	Username   string // UG user who submitted the tab
+	Votes      int    // user-tab vote count
 	Difficulty string // "easy" | "intermediate" | "advanced"
 
 	// pro_meta-only fields (PRO path).
-	Tempo      int       // UG top-level tempo (often 120 — unreliable)
-	StrumBPM   int       // from strummingPatterns[].bpm (closer to real)
-	DurationMS int       // duration in milliseconds (0 = not available)
+	Tempo      int // UG top-level tempo (often 120 — unreliable)
+	StrumBPM   int // from strummingPatterns[].bpm (closer to real)
+	DurationMS int // duration in milliseconds (0 = not available)
 	Tracks     []Track
 
 	// Source tag.
@@ -106,7 +107,7 @@ func (d *TabData) DurationOrPlaceholder() string {
 		return "n/a (not in this tab source)"
 	}
 	secs := d.DurationMS / 1000
- return fmt.Sprintf("%d:%02d", secs/60, secs%60)
+	return fmt.Sprintf("%d:%02d", secs/60, secs%60)
 }
 
 // --------------------------------------------------------------------
@@ -125,8 +126,9 @@ var (
 	// Plain JSON first (faster common case), then HTML-escaped.
 	reContentPlain = regexp.MustCompile(
 		`"content"\s*:\s*"((?:\\.|[^"\\])*)"`)
-	reContentHTML = regexp.MustCompile(
-		`&quot;content&quot;:&quot;(.+?)&quot;`)
+	// (HTML-escaped "content" is extracted by extractContentHTMLEscaped,
+	// a manual scanner — a non-greedy regex would truncate the body at the
+	// first inner \&quot; quote UG renders. See that function.)
 
 	// "tab":{"id":N,...} — the main tab's ID.
 	reTabIDPlain = regexp.MustCompile(
@@ -205,15 +207,15 @@ func extractFromHTML(tabID int, tabURL, html string) (*TabData, error) {
 		return nil, fmt.Errorf("ug: no content field found in HTML for tab %d", tabID)
 	}
 	// 2. Metadata fields — plain-JSON first, then HTML-escaped fallback.
-	d.Name       = strings.TrimSpace(firstMatch(html, reSongNamePlain, reSongNameHTML))
-	d.Artist     = strings.TrimSpace(firstMatch(html, reArtistNamePlain, reArtistNameHTML))
-	d.Username         = htmlUnescape(strings.TrimSpace(firstMatch(html,
+	d.Name = strings.TrimSpace(firstMatch(html, reSongNamePlain, reSongNameHTML))
+	d.Artist = strings.TrimSpace(firstMatch(html, reArtistNamePlain, reArtistNameHTML))
+	d.Username = htmlUnescape(strings.TrimSpace(firstMatch(html,
 		reUserNamePlain, reUserNamePlain2,
 		reUserNameHTML, reUserNameHTML2)))
-	d.Votes      = atoiSafe(firstMatch(html, reVotesPlain, reVotesHTML))
+	d.Votes = atoiSafe(firstMatch(html, reVotesPlain, reVotesHTML))
 	d.Difficulty = firstMatch(html, reDifficultyPlain, reDifficultyHTML)
-	d.Capo       = atoiSafe(firstMatch(html, reCapoPlain, reCapoHTML))
-	d.Tuning     = strings.TrimSpace(firstMatch(html, reTuningPlain, reTuningHTML))
+	d.Capo = atoiSafe(firstMatch(html, reCapoPlain, reCapoHTML))
+	d.Tuning = strings.TrimSpace(firstMatch(html, reTuningPlain, reTuningHTML))
 
 	// 3. Cross-check: if meta.capo=0, try extracting from a "Capo on Nth
 	//    Fret" instruction in the RAW content (before normalisation strips it).
@@ -251,16 +253,67 @@ func extractFromHTML(tabID int, tabURL, html string) (*TabData, error) {
 // extractContent tries the plain-JSON pattern first, then the
 // HTML-escaped pattern. Returns the content string and found flag.
 func extractContent(html string) (string, bool) {
+	var raw string
+	var ok bool
 	if m := reContentPlain.FindStringSubmatch(html); m != nil {
-		v := unescapeJSONString(m[1])
-		v = htmlUnescape(v)
-		return v, true
+		raw, ok = m[1], true
+	} else if v, found := extractContentHTMLEscaped(html); found {
+		raw, ok = v, true
 	}
-	if m := reContentHTML.FindStringSubmatch(html); m != nil {
-		v := htmlUnescape(m[1])
-		return v, true
+	if !ok {
+		return "", false
 	}
-	return "", false
+	// Both paths decode the same way: JSON escapes, then HTML entities.
+	v := unescapeJSONString(raw)
+	v = htmlUnescape(v)
+	return v, true
+}
+
+// extractContentHTMLEscaped locates the HTML-escaped `content` value and returns
+// its FULL value, treating an inner `\&quot;` (a JSON `"` rendered as the
+// `&quot;` HTML entity, i.e. backslash + `&quot;`) as part of the value and a
+// BARE `&quot;` as the closing delimiter.
+//
+// This replaces the old non-greedy reContentHTML regex, which stopped at the
+// FIRST inner &quot; and truncated the value at the first quoted phrase in the
+// tab prose — silently dropping the entire chord+lyric body after it (the bug
+// found on UG 1219927 / Some Fantastic, whose intro quotes a \"bathroom
+// session\").
+//
+// Go's regexp has no lookbehind, so we scan manually: when we hit a backslash
+// we skip the escaped token it guards — either an HTML entity (&...;) or a
+// single character — so the &quot; after \&quot; can never look like the close.
+func extractContentHTMLEscaped(raw string) (string, bool) {
+	const open = `&quot;content&quot;:&quot;`
+	i := strings.Index(raw, open)
+	if i < 0 {
+		return "", false
+	}
+	i += len(open)
+	start := i
+	for i < len(raw) {
+		if raw[i] == '\\' {
+			// Escaped token: skip it. If it targets an HTML entity, skip the
+			// whole `&...;`; otherwise skip the single escaped char.
+			if i+1 < len(raw) {
+				if raw[i+1] == '&' {
+					if j := strings.IndexByte(raw[i+1:], ';'); j >= 0 {
+						i += j + 1
+					} else {
+						return raw[start:], true // unterminated entity; best effort
+					}
+				} else {
+					i += 2
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(raw[i:], `&quot;`) {
+			return raw[start:i], true // bare closing delimiter
+		}
+		i++
+	}
+	return raw[start:], true // unterminated; return what we have
 }
 
 // extractCapoFromInstruction checks if content starts with a
@@ -291,7 +344,7 @@ func normalizeUserTabContent(s string) string {
 // from the start of a string.
 func stripCapoInstruction(s string) string {
 	re := regexp.MustCompile(
-		`(?i)^capo\s+(?:on\s+)?\d+\s*(?:rd|th)?\s*fret?\s*\n?`)
+		`(?i)^capo\s+(?:on\s+)?\d+\s*(?:rd|th)?\s*(?:fret)?\s*\n?`)
 	if m := re.FindString(s); m != "" {
 		return strings.TrimSpace(s[len(m):])
 	}
@@ -316,12 +369,12 @@ func firstMatch(html string, patterns ...*regexp.Regexp) string {
 // htmlUnescape decodes common HTML entities.
 func htmlUnescape(s string) string {
 	s = strings.ReplaceAll(s, "&quot;", "\"")
-	s = strings.ReplaceAll(s, "&amp;",   "&")
-	s = strings.ReplaceAll(s, "&lt;",    "<")
-	s = strings.ReplaceAll(s, "&gt;",    ">")
+	s = strings.ReplaceAll(s, "&amp;", "&")
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
 	s = strings.ReplaceAll(s, "&apos;", "'")
 	s = strings.ReplaceAll(s, "&#039;", "'")
-	s = strings.ReplaceAll(s, "&#39;",   "'")
+	s = strings.ReplaceAll(s, "&#39;", "'")
 	return s
 }
 
@@ -329,9 +382,9 @@ func htmlUnescape(s string) string {
 // that appear as literal 2-character text in the extracted content.
 func unescapeJSONString(s string) string {
 	s = strings.ReplaceAll(s, `\r\n`, "\n")
-	s = strings.ReplaceAll(s, `\n`,   "\n")
-	s = strings.ReplaceAll(s, `\t`,   "\t")
-	s = strings.ReplaceAll(s, `\r`,   "\n")
+	s = strings.ReplaceAll(s, `\n`, "\n")
+	s = strings.ReplaceAll(s, `\t`, "\t")
+	s = strings.ReplaceAll(s, `\r`, "\n")
 	return s
 }
 
@@ -384,16 +437,16 @@ func toTitle(s string) string {
 // stay empty. This is the adapter used by `ggt ug <file>` mode.
 func UGMetaToTabData(m *UGMeta, tabID int) *TabData {
 	d := &TabData{
-		TabID:     tabID,
+		TabID:      tabID,
 		Name:       m.Name,
 		Artist:     m.Artist,
 		Tuning:     m.Meta.Tuning,
 		Capo:       m.Meta.Capo,
 		Content:    m.Lyrics,
-		Tempo:       m.Tempo,
-		DurationMS:  m.Meta.Duration,
-		Tracks:      m.Tracks,
-		Source:      "pro_meta",
+		Tempo:      m.Tempo,
+		DurationMS: m.Meta.Duration,
+		Tracks:     m.Tracks,
+		Source:     "pro_meta",
 	}
 	// Compute StrumBPM from strumming patterns.
 	for _, p := range m.StrummingPatterns {
