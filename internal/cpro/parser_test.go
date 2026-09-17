@@ -114,3 +114,48 @@ func TestTokenizeGroupsParens(t *testing.T) {
 		}
 	}
 }
+
+// TestClassifyTrailingTextSectionHeader is the Option C guard: a bracket that
+// carries a parenthetical cue is a section header ONLY when the bracket holds a
+// static section word -- so a real chord row with an annotation, e.g. "[Dm7] (x3)"
+// (a repeat annotation) or "[G] (voicing)", keeps its chord meaning and is NOT
+// reclassified as a dropped section.
+func TestClassifyTrailingTextSectionHeader(t *testing.T) {
+	// section == true: must be recognized as a section header (dropped by the
+	// cpro pipeline). section == false: must NOT be, so a real chord row with an
+	// annotation keeps its content and is never dropped.
+	cases := []struct {
+		line    string
+		section bool
+	}{
+		// Cued section headers -- dropped as sections.
+		{"[Bridge] (all bar chords)", true},
+		{"[Intro] (fingering in 4/4)", true},
+		// Numbered / multi-word cued headers are also sections even though they are
+		// not in the static word list (they are not parseable chords, so they
+		// classify as sections via the !IsChordToken path). This is the case the
+		// closed deny-list alone missed.
+		{"[Verse 1] (quiet)", true},
+		{"[Intro 2] (fingering)", true},
+		// Drift guard: "fill" is a chord-shaped section word that lives in the
+		// shared list; it must classify as a section here too (this was the
+		// exact word the two-package list missed).
+		{"[Fill] (x3)", true},
+		{"[Fill-in] (x2)", true},
+		// Bare section header (unchanged original sectionRe).
+		{"[Chorus]", true},
+		// Blank line is neither.
+		{"", false},
+		// NEGATIVE cases: a bracket plus a parenthetical that is a real chord row
+		// or a chord line must NOT be reclassified as a (dropped) section.
+		{"[Dm7] (x3)", false},
+		{"[G] (voicing)", false},
+		{"[C] hello", false},
+	}
+	for _, c := range cases {
+		got := ClassifyLine(c.line).Kind == Section
+		if got != c.section {
+			t.Errorf("ClassifyLine(%q).isSection = %v, want %v", c.line, got, c.section)
+		}
+	}
+}

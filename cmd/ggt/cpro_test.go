@@ -84,3 +84,41 @@ func TestCprNoCapoNoHeaderFields(t *testing.T) {
 		t.Errorf("no capo requested, so neither {capo} nor (Capo N):\n%s", out)
 	}
 }
+
+// TestCprDropsTrailingTextSectionHeader is the end-to-end Option C guard: a
+// section header with a trailing cue -- e.g. [Bridge] (all bar chords) -- must be
+// classified as a section and DROPPED by cpro, so it never reaches the transpose
+// layer to be mangled into "Eridge". Exercised through a real de-capo run
+// (--capo 5 --remove-capo), which is the actual failing path.
+func TestCprDropsTrailingTextSectionHeader(t *testing.T) {
+	stdin := "[Bridge] (all bar chords)\nG   D\nhello world\n"
+	out := execCpr(t, stdin, "-", "--key", "G", "--capo", "5", "--remove-capo")
+	if strings.Contains(out, "ridge") {
+		t.Errorf("section header leaked or was transposed/corrupted:\n%s", out)
+	}
+	if strings.Contains(out, "[Bridge]") {
+		t.Errorf("[Bridge] header should have been dropped as a section:\n%s", out)
+	}
+	if !strings.Contains(out, "hello") || !strings.Contains(out, "world") {
+		// The chord brackets may splice into the lyric, so we check the words
+		// survive, not that the bare phrase "hello world" is intact.
+		t.Errorf("lyric was unexpectedly dropped:\n%s", out)
+	}
+}
+
+// TestCprPreservesChordRowWithAnnotation is the negative companion to
+// TestCprDropsTrailingTextSectionHeader: a real bracketed chord row that carries
+// a parenthetical annotation -- e.g. "[Dm7] (x3)", a repeat-count -- is NOT a
+// section and must survive the cpro pipeline (be shifted/preserved), not dropped.
+// This is the exact case the widened section match almost swallowed, which would
+// silently delete the chord from the output.
+func TestCprPreservesChordRowWithAnnotation(t *testing.T) {
+	stdin := "[Dm7] (x3)\nG   D\nhello\n"
+	out := execCpr(t, stdin, "-", "--capo", "0")
+	if !strings.Contains(out, "x3") {
+		t.Errorf("chord row with a repeat annotation was swallowed (dropped as a section):\n%s", out)
+	}
+	if !strings.Contains(out, "hello") {
+		t.Errorf("lyric was unexpectedly dropped:\n%s", out)
+	}
+}
