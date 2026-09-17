@@ -8,10 +8,32 @@ package cpro
 import (
 	"regexp"
 	"strings"
+
+	"ggt/internal/sections"
 )
 
 var (
+	// sectionRe matches a bare section header: a line that is just a [tag]
+	// bracket. Unchanged from before -- any bracket alone is a section and gets
+	// dropped with a section break.
 	sectionRe = regexp.MustCompile(`^\s*\[[^\]]*\]\s*$`)
+
+	// sectionCueRe matches a section header that ALSO carries a trailing
+	// parenthetical cue -- e.g. "[Bridge] (all played as bar chords)", which UG
+	// authors annotate on the line. Such a header is still a section and must be
+	// dropped as such, BUT this shape also matches a real chord row such as
+	// "[Dm7] (x3)" -- a chord plus a repeat/voicing annotation -- which MUST NOT
+	// be dropped. A pure regex cannot tell "Bridge" from "Dm7", so the decision is
+	// gated on isSectionWord (below): a cued header is a section when its bracket
+	// content is a known section word (shared via the sections package) OR is not a
+	// real chord at all (handles numbered heads like "[Verse 1] (quiet)"). The full
+	// grammar-based version of this distinction is the deferred chord-quality work
+	// (Option B).
+	sectionCueRe = regexp.MustCompile(`^\s*\[[^\]]*\]\s*\(.+\)\s*$`)
+
+	// bracketInnerRe captures the inner content of a leading [..] bracket, used to
+	// read the section word out of a cued header for isSectionWord.
+	bracketInnerRe = regexp.MustCompile(`^\s*\[([^\]]*)\]`)
 
 	// chordTokenRe: root note A-G, optional accidental, optional quality
 	// suffix, optional slash bass note, optional trailing "*" (voicing
@@ -194,6 +216,30 @@ func isBlank(line string) bool {
 	return true
 }
 
+// isSectionWord reports whether a bracket's inner content is a section/annotation
+// word, rather than a real chord. A cued section header is dropped as a section
+// only when the bracket holds such a word, which keeps a real chord row like
+// "[Dm7] (x3)" intact and lets arbitrary section heads like "[Verse 1] (quiet)"
+// be recognized even though they are not in a closed list.
+//
+// Two cases make something a section word:
+//   - it is NOT a parseable chord at all (e.g. "Verse 1", "Intro 2", "Quiet"), or
+//   - it is a known static section word that merely LOOKS like a chord
+//     (e.g. "Bridge", "Chorus", "Break") -- drawn from the shared sections
+//     package so cpro and the transpose layer never drift apart.
+//
+// A chord like "Dm7" or "G" is parseable and not a known section word, so it is
+// not a section. A chord-quality grammar (deferred Option B) would make the
+// decision fully rigorous; until then the shared sections.IsWord set is the
+// single extension point.
+func isSectionWord(inner string) bool {
+	t := strings.TrimSpace(inner)
+	if sections.IsWord(t) {
+		return true
+	}
+	return !IsChordToken(t)
+}
+
 // ClassifyLine determines what kind of chart line a single line is.
 func ClassifyLine(line string) ClassifiedLine {
 	if isBlank(line) {
@@ -201,6 +247,16 @@ func ClassifyLine(line string) ClassifiedLine {
 	}
 	if sectionRe.MatchString(line) {
 		return ClassifiedLine{Section, line}
+	}
+	// A section header may also carry a trailing parenthetical cue -- e.g.
+	// "[Bridge] (all played as bar chords)", "[Verse 1] (quiet)", "[Intro 2]
+	// (fingering)". Drop it as a section, but ONLY when the bracket holds a
+	// section word, so a real chord row such as "[Dm7] (x3)" keeps its chord
+	// meaning instead of being dropped.
+	if sectionCueRe.MatchString(line) {
+		if m := bracketInnerRe.FindStringSubmatch(line); m != nil && isSectionWord(m[1]) {
+			return ClassifiedLine{Section, line}
+		}
 	}
 	if IsChordLine(line) {
 		return ClassifiedLine{Chord, line}

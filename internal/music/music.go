@@ -26,6 +26,8 @@ import (
 	"regexp"
 	"strings"
 
+	"ggt/internal/sections"
+
 	mt "github.com/brettbuddin/musictheory"
 )
 
@@ -60,6 +62,12 @@ var rootRe = regexp.MustCompile(`^([A-Ga-g])([#b]*)`)
 // bracketRe finds cpro's inline bracketed chord tokens.
 var bracketRe = regexp.MustCompile(`\[([^\]]+)\]`)
 
+// Section/annotation words that must NEVER be transposed (Bridge, Chorus,
+// Break, Guitar, ...) live in the shared sections package. The transpose layer
+// consults sections.IsWord (defense-in-depth behind the upstream cpro drop,
+// Option C) so that a bracket holding a static section word is left verbatim
+// rather than shifted into a garbage string like "Eridge". The set is a single,
+// shared, auditable source of truth rather than a per-package copy.
 // keyLineRe matches the leading {key: …} header of a cpro output and
 // captures the value.
 var keyLineRe = regexp.MustCompile(`^(\{key:\s*)([^}]*?)(\s*\})$`)
@@ -173,6 +181,13 @@ func up(c byte) byte {
 //	Cadd9   -> Badd9
 //	x2      -> x2       (unchanged, not a chord)
 func TransposeSymbol(sym string, semis int, style Style) (string, bool) {
+	// A static section/annotation word (Bridge, Chorus, Break, Guitar, ...) starts
+	// on a pitch letter but is NOT a chord: it must be left verbatim, never
+	// transposed into "Eridge". This is the single chokepoint, so the file-level
+	// body/text transposers inherit the guard by calling through here.
+	if sections.IsWord(sym) {
+		return sym, false
+	}
 	root, quality, bass, ok := parseChord(sym)
 	if !ok {
 		return sym, false

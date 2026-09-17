@@ -59,6 +59,14 @@ func TestTransposeSymbol(t *testing.T) {
 		// the "preserve degree" cases the user called out
 		{"Dm7b5 untouched at 0", "Dm7b5", 0, StyleAuto, "Dm7b5", true},
 		{"Cadd9 to Aadd9 down 3", "Cadd9", -3, StyleAuto, "Aadd9", true},
+
+		// section/annotation headers must NOT transpose even though they start
+		// on a pitch letter (regression: the transpose layer used to treat
+		// "Bridge" as a B-root chord and shift it to "Eridge").
+		{"section Bridge untouched +5", "Bridge", 5, StyleAuto, "Bridge", false},
+		{"section Chorus untouched +5", "Chorus", 5, StyleAuto, "Chorus", false},
+		{"section Break untouched +3", "Break", 3, StyleSharps, "Break", false},
+		{"section Guitar untouched +3", "Guitar", 3, StyleSharps, "Guitar", false},
 	}
 
 	for _, tc := range cases {
@@ -173,5 +181,51 @@ func TestRoundTrip(t *testing.T) {
 		if back != sym {
 			t.Errorf("round-trip %s -> %s -> %s (want %s)", sym, down, back, sym)
 		}
+	}
+}
+
+// TestTransposeCProLeavesSectionTags locks the file-level contract: a bracketed
+// section header carrying trailing text -- and a bare static word -- is NEVER
+// transposed, even under a nonzero shift. This is the §2.3 trap: the bare-tag
+// case passes today and misses the bug, so these cases carry trailing text and a
+// nonzero shift, exercised at BOTH transpose layers.
+func TestTransposeCProLeavesSectionTags(t *testing.T) {
+	in := "" +
+		"{key: C}\n" +
+		"[Bridge] (All played as bar chords)\n" +
+		"[Dm7] lyric [Chorus] (x3)\n" +
+		"[F# - F] walkdown\n"
+
+	// Body transpose ignores the {key:} header, so the key must stay C while the
+	// two static tags survive verbatim and the real chord (+5) and walkdown
+	// behave as before.
+	body := TransposeCProBody(in, 5, StyleSharps)
+	if !strings.Contains(body, "[Bridge] (All played as bar chords)") {
+		t.Errorf("Bridge tag corrupted by body transpose:\n%s", body)
+	}
+	if !strings.Contains(body, "[Chorus] (x3)") {
+		t.Errorf("Chorus tag corrupted by body transpose:\n%s", body)
+	}
+	if !strings.Contains(body, "[Gm7] lyric") {
+		t.Errorf("Dm7 should shift +5 to Gm7:\n%s", body)
+	}
+	if !strings.Contains(body, "[F# - F] walkdown") {
+		t.Errorf("walkdown should not move:\n%s", body)
+	}
+	if got := KeyOf(body); got != "C" {
+		t.Errorf("body transpose must leave the key at C: got %q", got)
+	}
+
+	// Text transpose rewrites the {key:} header (C->F under +5) but must still
+	// leave the two static tags verbatim.
+	text := TransposeCProText(in, 5, StyleSharps)
+	if !strings.Contains(text, "[Bridge] (All played as bar chords)") {
+		t.Errorf("Bridge tag corrupted by text transpose:\n%s", text)
+	}
+	if !strings.Contains(text, "[Chorus] (x3)") {
+		t.Errorf("Chorus tag corrupted by text transpose:\n%s", text)
+	}
+	if got := KeyOf(text); got != "F" {
+		t.Errorf("text transpose must rewrite the key C->F: got %q", got)
 	}
 }
