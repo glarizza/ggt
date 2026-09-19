@@ -7,7 +7,7 @@
 // Section headers like [Verse 1], [Chorus], [Intro], [Outro] are NOT
 // emitted as text — they are dropped. A blank-line separator is inserted
 // at each section boundary so verse/chorus/bridge structure is preserved
-// in the .cpro output.
+// in the .chopro output.
 //
 // End-of-song markers (X alone on a line) and standalone
 // "(Instrumental)" lines are dropped entirely.
@@ -22,7 +22,7 @@ import "strings"
 
 // wrapStandaloneChordLine lives in filter.go.
 
-// Convert reads the full text of a tab chart and returns .cpro output.
+// Convert reads the full text of a tab chart and returns .chopro output.
 // If opts has any fields set, a {key: value} header is prepended.
 // RemoveCapo is handled in cmd/ggt (body de-capo); cpro only emits {capo: N}.
 func Convert(text string, opts HeaderOpts) string {

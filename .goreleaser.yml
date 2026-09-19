@@ -1,33 +1,38 @@
-# ggt go-releaser config (v2).  Produces release binaries, stamped the same
-# way make build-stamp stamps them, reading the version from VERSION.
+# ggt go-releaser config (v2, goreleaser >= 2.2). Produces release binaries,
+# stamped the same way make build-stamp stamps them, with the version taken from
+# the VERSION file at the repo root (the git tag overrides it when releasing).
 
 version: 2
 
-# Version is read from the VERSION file at the repo root (git tag overrides it
-# when releasing from a tag).
-project:
-    name: ggt
-
 builds:
-   - id: ggt
-    ignore:
-       - goos: windows
-         goarch: "386"
-    env:
-       - CGO_ENABLED=0
-    main: ./cmd/ggt
-    binary: ggt
-    ldflags:
-       - -s -w
-       - "-X ggt/internal/version.Version={{ .Version }}"
-       - "-X ggt/internal/version.GitCommit={{ .ShortCommit }}"
-       - "-X ggt/internal/version.BuildDate={{ .Date }}"
-       - "-X ggt/internal/version.Build=release"
+     - id: ggt
+       # Explicit 64-bit matrix only: linux + darwin, each amd64 + arm64, for a
+       # total of four artifacts. No 32-bit; no other GOOS (freebsd, openbsd,
+       # windows, ...).
+       goos:
+            - linux
+            - darwin
+       goarch:
+            - amd64
+            - arm64
+       env:
+            - CGO_ENABLED=0
+       main: ./cmd/ggt
+       binary: ggt
+       ldflags:
+            - -s -w
+            - "-X ggt/internal/version.Version={{ .Version }}"
+            - "-X ggt/internal/version.GitCommit={{ .ShortCommit }}"
+            - "-X ggt/internal/version.BuildDate={{ .Date }}"
+            - "-X ggt/internal/version.Build=release"
 
+# Project name is hardcoded as `ggt` (goreleaser 2.9+ dropped the top-level
+# `project` block, so the {{ .ProjectName }} template var is no longer resolvable).
 archives:
-   - id: default
-     name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
-     format: tar.gz
+     - id: default
+       name_template: 'ggt_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 
+# Changelog is opt-in in v2; re-enable it so tagged releases get GitHub's
+# auto-generated change-notes.
 changelog:
-    enable: true
+    disable: false
