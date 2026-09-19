@@ -2,7 +2,7 @@
 
 ## Project
 
-`ggt` is a CLI tool for working with guitar chord charts and `.cpro` files
+`ggt` is a CLI tool for working with guitar chord charts and `.chopro` files
 (used by BandHelper). It started as a single-purpose tab-to-chordpro
 reformatter and is being expanded into a multi-subcommand tool.
 
@@ -45,7 +45,7 @@ feat: add a {key: value} header block to the formatter
 PROBLEM:
 The formatter had no way to produce a BandHelper `{key: value}`
 header block. All output was bare chord+lyric lines, making the
-resulting .cpro files incomplete.
+resulting .chopro files incomplete.
 
 SOLUTION:
 - Added `internal/cpro/filter.go` with `HeaderOpts` struct and
@@ -56,9 +56,9 @@ SOLUTION:
 - Added `filter_test.go` with unit tests for all header fields
 
 OUTCOME:
-`ggt cpro` can now produce complete, BandHelper-ready `.cpro` files
+`ggt cpro` can now produce complete, BandHelper-ready `.chopro` files
 with full metadata header. All 25 tests pass. The
-`sample_02_expected.cpro` fixture is a realistic end-to-end example.
+`sample_02_expected.chopro` fixture is a realistic end-to-end example.
 ```
 
 ---
@@ -118,7 +118,7 @@ Two rules:
 
 2. **Never use a real song name as a filename.** Test data files use
 generic numeric names like `sample_01.txt`, `sample_02_capo.txt`,
-`sample_04_expected.cpro`. Do NOT name them after songs or artists.
+`sample_04_expected.chopro`. Do NOT name them after songs or artists.
 
 The scrambler preserves all chord-column positions, section structure,
 blank lines, X markers, and (Instrumental) lines — only the lyric

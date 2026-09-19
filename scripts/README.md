@@ -9,9 +9,9 @@ speculatively.
 ```
 scripts/clean_tab.py      in.txt   ->  in.cleaned.txt        strip web / tab noise
          |
-ggt cpro in.cleaned.txt --key K --capo N --time T --title "..." -o out.cpro
+ggt cpro in.cleaned.txt --key K --capo N --time T --title "..." -o out.chopro
          |
- out.cpro   --imported into BandHelper
+ out.chopro   --imported into BandHelper
 ```
 
 ---
@@ -60,5 +60,5 @@ the *cleaned* output into `sample-tabs/` under a generic number.
 - **Never commit real lyrics or tabs.** Real charts live in `ignored/`
   (gitignored). Committable fixtures are scrambled and named with generic
    numbers (`sample_08.txt`), never real song or artist names.
-- `output/` (gitignored) holds cleaned tabs and generated `.cpro` files
+- `output/` (gitignored) holds cleaned tabs and generated `.chopro` files
   for BandHelper import — never committed.
