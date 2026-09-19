@@ -23,9 +23,9 @@ var rootCmd = &cobra.Command{
 	Short: "Gary's Guitar Tool",
 	Long: "ggt — Gary's Guitar Tool\n\n" +
 		"A multi-subcommand CLI for working with guitar chord charts and\n" +
-		"BandHelper .cpro files.\n\n" +
+		"BandHelper .chopro files.\n\n" +
 		"Available subcommands:\n" +
-		"  cpro    Convert a tab chart to .cpro format\n" +
+		"  cpro    Convert a tab chart to .chopro format\n" +
 		"  ug      Process UG Pro tab data (fetch, clean, analyse)\n" +
 		"  version Print the version and exit\n",
 	SilenceUsage:  false,
