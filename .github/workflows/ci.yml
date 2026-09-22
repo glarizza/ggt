@@ -1,0 +1,124 @@
+# ggt CI — PR-only. Deliberately NO workflow cuts GitHub Releases: releasing is
+# the human-run `make release` (tag + push + Goreleaser), not an automated
+# pipeline. See the ai-specs plan for the rationale.
+#
+# What runs here on pull_request:
+#   1. path-filter    — a single job that decides whether Go sources changed.
+#   2. test           — `go test ./...` via `make test`, gated on that decision.
+#   3. version-nudge  — an always-on, updatable marker comment on every PR nudging
+#                      a matching VERSION bump + which make target to run.
+#
+# Actions are pinned to commit SHAs (not moving tags):
+#   actions/checkout    11bd71901bbe5b1630ceea73d27597364c9af683   (v4.2.2)
+#   actions/setup-go     924ae3a1cded613372ab5595356fb5720e22ba16   (v6.5.0)
+#   dorny/paths-filter   0e4a8c6effa4802afeda77dc8d303f8176d7dfad   (v3.0.4)
+
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Default to read-only CI tokens; each job tightens what it needs.
+permissions:
+  contents: read
+
+jobs:
+  # --- 1. Gate: did this PR change any Go source? ----------------------------
+  path-filter:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.filter.outputs.run }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad  # v3.0.4
+        with:
+          filters: |
+            run:
+              - '**/cmd/**/*.go'
+              - '**/internal/**/*.go'
+              - '*.go'
+              - 'go.mod'
+              - 'go.sum'
+
+  # --- 2. Go unit tests (only when Go sources changed). ----------------------
+  test:
+    runs-on: ubuntu-latest
+    needs: path-filter
+    if: ${{ needs.path-filter.outputs.run == 'true' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16   # v6.5.0
+        with:
+          # Match the module's declared toolchain exactly (go.mod: go 1.26).
+          go-version-file: go.mod
+      - name: Run tests
+        run: make test
+
+  # --- 3. Nudge: updatable VERSION comment, fires on EVERY PR. ---------------
+  # Intentionally NOT gated — it must fire on every PR so reviewers always see
+  # whether the VERSION bump (a release prerequisite) is present.
+  version-nudge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Nudge VERSION (idempotent marker comment)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          MARKER='<!-- ggt-release -->'
+          # Make sure the base ref is locally resolvable for the comparison.
+          git fetch origin "$GITHUB_BASE_REF" --depth 1 >/dev/null 2>&1 || true
+          # "VERSION changed between base and head?" — quiet diff: 0 => unchanged.
+          if git diff --quiet "origin/$GITHUB_BASE_REF" HEAD -- VERSION; then
+            VER_CHANGED=0
+          else
+            VER_CHANGED=1
+          fi
+          CURV=$(cat VERSION 2>/dev/null || echo '?')
+          {
+            echo "$MARKER"
+            echo "## Release check"
+            echo ""
+            if [ "$VER_CHANGED" = "1" ]; then
+              echo "✅ **VERSION bumped to \`$CURV\`** — this PR is ready to cut a release with \`make release\` once it merges."
+            else
+              echo "⚠️ **VERSION not bumped in this PR.** If it carries a user-facing"
+              echo "or bug-fix change, bump VERSION first, then run \`make release\`:"
+              echo ""
+              echo "| Target               | Bumps            | Use when                                  |"
+              echo "|----------------------|------------------|-------------------------------------------|"
+              echo "| \`make version-patch\`   | 0.5.x → 0.5.\`x+1\` | bug fixes / small tweaks                 |"
+              echo "| \`make version-minor\`   | 0.5.x → 0.6.0     | new features / new subcommands            |"
+              echo "| \`make version-major\`   | 0.x.y → 1.0.0       | breaking changes                          |"
+              echo ""
+              echo "This comment re-runs automatically on each PR push."
+            fi
+          } > /tmp/vnudge.md
+
+          # Idempotent post: PATCH the existing marker comment if present, else create one.
+          COMMENTS=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" \
+            --jq '[.[] | select((.body // "") | test("'"$MARKER"'")) | .id]' 2>/dev/null || echo '[]')
+          CID=$(echo "$COMMENTS" | grep -o '[0-9]\+' | head -1 || true)
+          if [ -n "${CID:-}" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$CID" \
+              -F body="$(cat /tmp/vnudge.md)"
+          else
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body-file /tmp/vnudge.md
+          fi

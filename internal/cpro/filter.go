@@ -63,7 +63,7 @@ func maybeSectionBreak(out *[]string) {
 // capo in the header is omitted when RemoveCapo is set (the chart is the
 // native-key, no-capo version). RemoveCapo also drives the body de-capo
 // shift (wired in cmd/ggt), not the header itself.
-// HeaderOpts holds optional fields for the {key: value} .cpro header.
+// HeaderOpts holds optional fields for the {key: value} .chopro header.
 type HeaderOpts struct {
 	Title      string
 	Artist     string

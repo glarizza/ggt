@@ -16,7 +16,7 @@ LDFLAGS       := -s -w \
                  -X $(PKG_VERSION).BuildDate=$(BUILDDATE) \
                  -X $(PKG_VERSION).Build=$(BUILDMODE)
 
-.PHONY: help build build-stamp test run fmt vet clean version-patch version-minor version-major
+.PHONY: help build build-stamp test run fmt vet clean version-patch version-minor version-major release release-dryrun
 
 help:
 	@echo "Targets:"
@@ -27,6 +27,10 @@ help:
 	@echo "  make fmt               gofmt all source files"
 	@echo "  make vet               go vet all packages"
 	@echo "  make clean             Remove build artifacts"
+	@echo "  make version-patch     Bump VERSION patch     (0.5.1 -> 0.5.2)"
+	@echo "  make version-minor     Bump VERSION minor     (0.5.1 -> 0.6.0)"
+	@echo "  make release           Cut + publish a GitHub release for VERSION   (human-driven, not in CI)"
+	@echo "  make release-dryrun    Build release artifacts into dist/ (no tag, no publish)"
 
 # `build` is the day-to-day target and it STAMPS the binary with the semantic
 # VERSION, the short HEAD commit, the build date, and the build mode (the
@@ -94,3 +98,36 @@ version-major: # Bump major version (0.1.0 -> 1.0.0)
       echo "Bumping version: $$current -> $$new_version"; \
       echo $$new_version > $(VERSION_FILE); \
       echo "Version updated to $$new_version"
+
+# `release` is the human-driven release path. It is deliberately NOT wired into
+# GitHub Actions: a release that tags + publishes to GitHub is the one step we
+# keep in a human's hands. It reads VERSION, REFUSES to clobber a v$(VERSION)
+# tag that already exists locally OR on the remote (the tag the user fights
+# back against), then creates the annotated tag, pushes it, and lets Goreleaser
+# publish from it. Run it from the commit you want to ship.
+release:
+	@version=$$(cat $(VERSION_FILE) | tr -d '\n'); tag="v$$version"; \
+      echo "Releasing $$tag (from VERSION $$version)..." ; \
+      if [ -n "$$(git tag -l "$$tag")" ]; then \
+        echo "ERROR: local tag $$tag already exists; refusing to clobber" >&2 ; exit 1 ; \
+      fi ; \
+      if git ls-remote --tags origin "refs/tags/$$tag" 2>/dev/null | grep -q . ; then \
+        echo "ERROR: remote tag $$tag already exists; refusing to clobber" >&2 ; exit 1 ; \
+      fi ; \
+      git tag -a "$$tag" -m "Release $$tag" ; \
+      git push origin "$$tag" ; \
+      GITHUB_TOKEN=$$(gh auth token) goreleaser release --clean ; \
+      echo "" ; \
+      echo "=== Released $$tag ===" ; \
+      gh release list --json tagName,assets --limit 1 ; \
+      echo "  open https://github.com/glarizza/ggt/releases/tag/$$tag"
+
+# `release-dryrun` is the escape hatch: it builds + packs the release artifacts
+# into dist/ WITHOUT creating a tag, pushing, or publishing, so you can eyeball
+# the platform matrix and asset names before you run the real `make release`.
+release-dryrun:
+	@echo "Building release artifacts to dist/ (snapshot, no tag, no publish)..." ; \
+      goreleaser release --clean --snapshot ; \
+      echo "" ; \
+      echo "=== dist/ artifacts ===" ; \
+      ls -1 dist/ 2>/dev/null || echo "(none)"
